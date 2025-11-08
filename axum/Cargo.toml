@@ -82,8 +82,9 @@ jemalloc = ["dep:tikv-jemallocator"]
 dirs = ["templates"]
 
 [profile.release]
-opt-level = 3
-lto = true
-strip = true
-codegen-units = 1
-panic = 'abort'
+opt-level = 3           # Maximum performance (3 is faster than "z")
+lto = "fat"             # Fat LTO - more aggressive than true
+strip = true            # Strip symbols for smaller binary
+codegen-units = 1       # Better optimization, slower compile
+panic = 'abort'         # Smaller binary, no unwinding overhead
+overflow-checks = false # Disable overflow checks in release (faster)
