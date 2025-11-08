@@ -123,40 +123,25 @@
           const messageEl = document.querySelector('.message');
           const subMessageEl = document.querySelector('.sub-message');
           if (messageEl) messageEl.textContent = 'Signed out successfully';
-          if (subMessageEl) subMessageEl.textContent = 'Check console for details';
+          if (subMessageEl) subMessageEl.textContent = 'Redirecting to home...';
 
-          console.log('[Logout] Sign-out complete! Check the logs above.');
-          console.log('[Logout] You can manually navigate home or click the button below.');
+          console.log('[Logout] Sign-out complete! Redirecting to home page...');
 
-          // Add a manual redirect button for debugging
+          // Wait a moment to show the success message, then redirect
           setTimeout(() => {
-            const container = document.querySelector('.container');
-            if (container) {
-              const btn = document.createElement('button');
-              btn.textContent = 'Go to Home';
-              btn.style.cssText = 'margin-top: 20px; padding: 10px 20px; background: white; color: #667eea; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;';
-              btn.onclick = () => window.location.href = '/?_=' + Date.now();
-              container.appendChild(btn);
-            }
-          }, 100);
+            window.location.href = '/?_=' + Date.now();
+          }, 500);
         } catch (error) {
           console.error('[Logout] Sign-out error:', error);
           const messageEl = document.querySelector('.message');
           const subMessageEl = document.querySelector('.sub-message');
           if (messageEl) messageEl.textContent = 'Sign-out error occurred';
-          if (subMessageEl) subMessageEl.textContent = 'Check console for details';
+          if (subMessageEl) subMessageEl.textContent = 'Redirecting to home...';
 
-          // Add a manual redirect button for debugging
+          // Even on error, redirect to home after a moment
           setTimeout(() => {
-            const container = document.querySelector('.container');
-            if (container) {
-              const btn = document.createElement('button');
-              btn.textContent = 'Go to Home';
-              btn.style.cssText = 'margin-top: 20px; padding: 10px 20px; background: white; color: #667eea; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;';
-              btn.onclick = () => window.location.href = '/?_=' + Date.now();
-              container.appendChild(btn);
-            }
-          }, 100);
+            window.location.href = '/?_=' + Date.now();
+          }, 1000);
         }
       })();
     </script>
