@@ -23,7 +23,7 @@ impl Default for StaticConfig {
 
 /// Builds the complete Astro static routing layer
 /// Priority order:
-/// 1. Static asset directories (_astro, assets, chunks, pagefind)
+/// 1. Static asset directories (_astro, assets, chunks, images, pagefind)
 /// 2. Static HTML files from Astro build
 /// 3. Falls back to parent router (dynamic routes)
 pub fn build_static_router(config: &StaticConfig) -> Router {
@@ -49,6 +49,9 @@ pub fn build_static_router(config: &StaticConfig) -> Router {
         ServeDir::new(base.join("chunks"))
     };
 
+    // Images (WebP, PNG, JPG, etc.) are already compressed - skip gzip
+    let images_service = ServeDir::new(base.join("images"));
+
     let pagefind_service = if precompressed {
         ServeDir::new(base.join("pagefind")).precompressed_gzip()
     } else {
@@ -67,6 +70,7 @@ pub fn build_static_router(config: &StaticConfig) -> Router {
         .nest_service("/_astro", astro_service)
         .nest_service("/assets", assets_service)
         .nest_service("/chunks", chunks_service)
+        .nest_service("/images", images_service)
         .nest_service("/pagefind", pagefind_service)
         // Fallback to serve all other static files (HTML pages)
         .fallback_service(fallback_service)

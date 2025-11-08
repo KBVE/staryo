@@ -55,39 +55,108 @@
 
     <script>
       import { authBridge } from '@/components/auth';
-      import { initSupa, getSupa } from '@/lib/supa';
 
       (async () => {
         try {
-          // Sign out from both AuthBridge (window client) and SharedWorker
-          await authBridge.signOut();
+          console.log('[Logout] Starting sign-out process...');
 
-          // Initialize and sign out from SharedWorker
-          await initSupa();
-          const supa = getSupa();
-          await supa.signOut();
+          // Try to sign out from AuthBridge first (window client)
+          try {
+            await authBridge.signOut();
+            console.log('[Logout] AuthBridge sign-out complete');
+          } catch (err) {
+            console.log('[Logout] AuthBridge sign-out skipped (no session):', err);
+          }
 
-          // Give the worker a moment to process
-          await new Promise(resolve => setTimeout(resolve, 500));
+          // DON'T initialize SharedWorker - we need to keep it closed so IndexedDB can be deleted
+          console.log('[Logout] Skipping SharedWorker initialization to allow IndexedDB deletion');
 
-          // Success! Show message and redirect
+          // Wait a moment for any active connections to close
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+          // Clear IndexedDB manually to ensure session is gone
+          console.log('[Logout] Clearing IndexedDB...');
+
+          // First, list all databases
+          if ('databases' in indexedDB) {
+            const dbs = await indexedDB.databases();
+            console.log('[Logout] Existing databases:', dbs.map(db => db.name));
+          }
+
+          // Delete the sb-auth database completely
+          try {
+            await new Promise((resolve, reject) => {
+              const deleteRequest = indexedDB.deleteDatabase('sb-auth');
+              deleteRequest.onsuccess = () => {
+                console.log('[Logout] Successfully deleted IndexedDB: sb-auth');
+                resolve(true);
+              };
+              deleteRequest.onerror = () => {
+                console.error('[Logout] Error deleting sb-auth:', deleteRequest.error);
+                reject(deleteRequest.error);
+              };
+              deleteRequest.onblocked = () => {
+                console.warn('[Logout] IndexedDB sb-auth deletion blocked - trying to continue anyway');
+                // Wait a bit and resolve anyway
+                setTimeout(() => resolve(true), 200);
+              };
+            });
+          } catch (err) {
+            console.warn('[Logout] Failed to clear sb-auth:', err);
+          }
+
+          // Verify deletion
+          if ('databases' in indexedDB) {
+            const dbsAfter = await indexedDB.databases();
+            console.log('[Logout] Remaining databases after deletion:', dbsAfter.map(db => db.name));
+          }
+
+          // Also clear localStorage as a precaution
+          Object.keys(localStorage).forEach(key => {
+            if (key.includes('supabase') || key.includes('sb-')) {
+              localStorage.removeItem(key);
+              console.log(`[Logout] Cleared localStorage: ${key}`);
+            }
+          });
+
+          // Success! Show message
           const messageEl = document.querySelector('.message');
           const subMessageEl = document.querySelector('.sub-message');
           if (messageEl) messageEl.textContent = 'Signed out successfully';
-          if (subMessageEl) subMessageEl.textContent = 'Redirecting...';
+          if (subMessageEl) subMessageEl.textContent = 'Check console for details';
 
+          console.log('[Logout] Sign-out complete! Check the logs above.');
+          console.log('[Logout] You can manually navigate home or click the button below.');
+
+          // Add a manual redirect button for debugging
           setTimeout(() => {
-            window.location.href = '/';
-          }, 1000);
+            const container = document.querySelector('.container');
+            if (container) {
+              const btn = document.createElement('button');
+              btn.textContent = 'Go to Home';
+              btn.style.cssText = 'margin-top: 20px; padding: 10px 20px; background: white; color: #667eea; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;';
+              btn.onclick = () => window.location.href = '/?_=' + Date.now();
+              container.appendChild(btn);
+            }
+          }, 100);
         } catch (error) {
-          console.error('Sign-out error:', error);
+          console.error('[Logout] Sign-out error:', error);
           const messageEl = document.querySelector('.message');
           const subMessageEl = document.querySelector('.sub-message');
-          if (messageEl) messageEl.textContent = 'Sign-out completed';
-          if (subMessageEl) subMessageEl.textContent = 'Redirecting...';
+          if (messageEl) messageEl.textContent = 'Sign-out error occurred';
+          if (subMessageEl) subMessageEl.textContent = 'Check console for details';
+
+          // Add a manual redirect button for debugging
           setTimeout(() => {
-            window.location.href = '/';
-          }, 1000);
+            const container = document.querySelector('.container');
+            if (container) {
+              const btn = document.createElement('button');
+              btn.textContent = 'Go to Home';
+              btn.style.cssText = 'margin-top: 20px; padding: 10px 20px; background: white; color: #667eea; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;';
+              btn.onclick = () => window.location.href = '/?_=' + Date.now();
+              container.appendChild(btn);
+            }
+          }, 100);
         }
       })();
     </script>

@@ -1,17 +1,10 @@
 // src/components/ReactNav.tsx
 // This component hydrates the static nav shell from NavContainer.astro
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { initSupa, getSupa } from '@/lib/supa';
 import { useAuthBridge } from '@/components/auth';
 import { cn } from '@/lib/utils';
-import {
-  LogIn,
-  LogOut,
-  CircleAlert,
-  Loader2,
-  User,
-} from 'lucide-react';
 
 type Session = any;
 type OAuthProvider = 'github' | 'twitch' | 'discord';
@@ -39,9 +32,13 @@ export default function ReactNav() {
         const supa = getSupa();
 
         const s = await supa.getSession().catch(() => null);
+        console.log('[ReactNav] Initial session:', s?.session ? 'logged in' : 'not logged in');
         setSession(s?.session ?? null);
 
-        off = supa.on('auth', (msg: any) => setSession(msg.session ?? null));
+        off = supa.on('auth', (msg: any) => {
+          console.log('[ReactNav] Auth state changed:', msg.session ? 'logged in' : 'logged out');
+          setSession(msg.session ?? null);
+        });
         setReady(true);
       } catch (e: any) {
         setError(e?.message ?? 'Failed to initialize Supabase');
@@ -54,9 +51,12 @@ export default function ReactNav() {
   const busy = authLoading;
 
   const state = useMemo(() => {
-    if (!ready) return { tone: 'loading' as const, label: 'Loading…', displayName: 'Staryo' };
-    if (error) return { tone: 'error' as const, label: `Error: ${error}`, displayName: 'Staryo' };
-    if (!session?.user) return { tone: 'anon' as const, label: 'Anonymous user', displayName: 'Staryo Guest' };
+    if (!ready) return { tone: 'loading' as const, label: 'Loading…', displayName: 'Staryo', avatarUrl: undefined };
+    if (error) return { tone: 'error' as const, label: `Error: ${error}`, displayName: 'Staryo', avatarUrl: undefined };
+    if (!session?.user) {
+      console.log('[ReactNav] No session, showing anonymous state');
+      return { tone: 'anon' as const, label: 'Anonymous user', displayName: 'Staryo Guest', avatarUrl: undefined };
+    }
 
     const user = session.user;
     const displayName = user.user_metadata?.full_name ||
@@ -64,6 +64,8 @@ export default function ReactNav() {
                        user.email?.split('@')[0] ||
                        'User';
     const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture;
+
+    console.log('[ReactNav] User session found:', { displayName, avatarUrl: avatarUrl ? 'yes' : 'no' });
 
     return {
       tone: 'auth' as const,
@@ -73,14 +75,6 @@ export default function ReactNav() {
     };
   }, [ready, error, session]);
 
-  const getToneClass = (tone: typeof state.tone) =>
-    cn(
-      'w-4 h-4',
-      tone === 'loading' && 'text-gray-400',
-      tone === 'error' && 'text-red-500',
-      tone === 'anon' && 'text-yellow-400',
-      tone === 'auth' && 'text-green-500'
-    );
 
   async function handleOAuthSignIn(provider: OAuthProvider) {
     setError(null);
@@ -92,68 +86,87 @@ export default function ReactNav() {
     }
   }
 
-  // Update username in DOM
+  // Get the vanilla JS helpers
+  const navHelpers = (window as any).__navHelpers;
+
+  // Track if this is the first render to skip initial transitions
+  const isFirstRender = useRef(true);
+
+  // Update all nav elements when state changes
   useEffect(() => {
-    const usernameEl = document.getElementById('nav-username') ||
-                      document.querySelector('[data-x-kbve="username"]');
-    if (usernameEl) {
-      usernameEl.textContent = state.displayName;
+    if (!mounted || !navHelpers) return;
+
+    // Skip the loading state - only update UI when we have actual data
+    if (state.tone === 'loading') return;
+
+    console.log('[ReactNav] Updating UI with state:', { tone: state.tone, displayName: state.displayName, hasAvatar: !!state.avatarUrl });
+
+    // Skip transitions on first render, just set content directly
+    if (isFirstRender.current) {
+      const usernameEl = document.getElementById('nav-username') ||
+                        document.querySelector('[data-x-kbve="username"]') as HTMLElement;
+      const statusEl = document.getElementById('nav-status-icon') ||
+                      document.querySelector('[data-x-kbve="status-icon"]') as HTMLElement;
+      const avatarEl = document.getElementById('nav-avatar-container') ||
+                      document.querySelector('[data-x-kbve="avatar-container"]') as HTMLElement;
+
+      // Set initial content without transitions
+      if (usernameEl) usernameEl.textContent = state.displayName;
+
+      // Setup click handlers
+      const handleStatusClick = () => {
+        if (state.tone === 'anon') {
+          setModalOpen(true);
+        } else if (state.tone === 'auth') {
+          window.location.href = '/auth/logout';
+        }
+      };
+
+      // Use vanilla JS to update icon and avatar immediately on first render
+      if (statusEl) {
+        const iconMap: Record<typeof state.tone, string> = {
+          error: '<svg class="w-4 h-4 text-red-500" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+          anon: '<svg class="w-4 h-4 text-yellow-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>',
+          auth: '<svg class="w-4 h-4 text-green-500 hover:text-red-500 transition-colors" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>'
+        };
+        statusEl.innerHTML = iconMap[state.tone];
+        if (state.tone !== 'error') {
+          statusEl.style.cursor = 'pointer';
+          statusEl.onclick = handleStatusClick;
+        }
+      }
+
+      if (avatarEl) {
+        if (state.avatarUrl) {
+          avatarEl.innerHTML = `<img src="${state.avatarUrl}" alt="${state.displayName}" class="w-5 h-5 rounded-full ring-1 ring-gray-200 dark:ring-gray-700" />`;
+        } else {
+          avatarEl.innerHTML = '<svg class="w-5 h-5 opacity-70" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>';
+        }
+      }
+
+      isFirstRender.current = false;
+      return;
     }
-  }, [state.displayName]);
 
-  if (!mounted) return null;
+    // Subsequent renders: use fade transitions
+    navHelpers.updateUsername(state.displayName);
+    navHelpers.updateAvatar(state.avatarUrl, state.displayName);
 
-  const statusIconContainer = document.getElementById('nav-status-icon') ||
-                              document.querySelector('[data-x-kbve="status-icon"]');
-  const avatarContainer = document.getElementById('nav-avatar-container') ||
-                         document.querySelector('[data-x-kbve="avatar-container"]');
-
-  if (!statusIconContainer || !avatarContainer) return null;
-
-  const StatusIcon = () => {
-    const handleClick = () => {
+    const handleStatusClick = () => {
       if (state.tone === 'anon') {
         setModalOpen(true);
       } else if (state.tone === 'auth') {
-        // Redirect to logout page
         window.location.href = '/auth/logout';
       }
     };
 
-    return (
-      <button
-        type="button"
-        className="inline-flex items-center justify-center w-5 h-5"
-        title={state.tone === 'auth' ? 'Sign out' : state.label}
-        aria-label={state.tone === 'auth' ? 'Sign out' : state.label}
-        onClick={handleClick}
-        disabled={state.tone === 'loading' || state.tone === 'error'}
-      >
-        {state.tone === 'loading' && <Loader2 className={cn(getToneClass(state.tone), 'animate-spin')} />}
-        {state.tone === 'error'   && <CircleAlert className={getToneClass(state.tone)} />}
-        {state.tone === 'anon'    && <LogIn className={getToneClass(state.tone)} />}
-        {state.tone === 'auth'    && <LogOut className={cn(getToneClass(state.tone), 'hover:text-red-500 transition-colors')} />}
-      </button>
-    );
-  };
+    navHelpers.updateStatusIcon(state.tone, handleStatusClick);
+  }, [mounted, state.tone, state.displayName, state.avatarUrl, navHelpers]);
 
-  const AvatarIcon = () => {
-    if (state.tone === 'auth' && state.avatarUrl) {
-      return (
-        <img
-          src={state.avatarUrl}
-          alt={state.displayName}
-          className="w-5 h-5 rounded-full ring-1 ring-gray-200 dark:ring-gray-700"
-        />
-      );
-    }
-    return <User className="w-4 h-4 opacity-70" />;
-  };
+  if (!mounted) return null;
 
   return (
     <>
-      {createPortal(<StatusIcon />, statusIconContainer)}
-      {createPortal(<AvatarIcon />, avatarContainer)}
 
       {/* Auth modal */}
       {modalOpen && createPortal(
