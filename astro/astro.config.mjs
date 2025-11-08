@@ -2,7 +2,6 @@
 import { defineConfig } from 'astro/config';
 import worker from "@astropub/worker"
 
-import { defineConfig as defineViteConfig } from 'vite';
 import starlight from '@astrojs/starlight';
 import starlightThemeGalaxy from 'starlight-theme-galaxy';
 import tailwindcss from '@tailwindcss/vite';

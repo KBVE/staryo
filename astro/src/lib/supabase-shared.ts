@@ -9,8 +9,11 @@ export class SupaShared {
     if (typeof window === 'undefined') return; // SSR guard
     if (!('SharedWorker' in window)) return;   // Safari fallback handled by caller
 
-    // The astropub/worker integration will rewrite this path for you.
-    this.worker = new SharedWorker('../workers/supabase.shared.ts', { type: 'module' });
+    // Use Vite's native worker import syntax
+    this.worker = new SharedWorker(
+      new URL('../workers/supabase.shared.ts', import.meta.url),
+      { type: 'module' }
+    );
     this.port = this.worker.port;
     this.port.onmessage = (e) => this.onMessage(e.data);
     this.port.start();
