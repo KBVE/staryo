@@ -41,7 +41,9 @@ export default function ReactNav() {
         });
         setReady(true);
       } catch (e: any) {
-        setError(e?.message ?? 'Failed to initialize Supabase');
+        const errorMsg = e?.message ?? 'Failed to initialize Supabase';
+        console.error('[ReactNav] Initialization error:', errorMsg, e);
+        setError(errorMsg);
         setReady(true);
       }
     })();

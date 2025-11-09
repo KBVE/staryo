@@ -83,26 +83,26 @@
             console.log('[Logout] Existing databases:', dbs.map(db => db.name));
           }
 
-          // Delete the sb-auth database completely
+          // Delete the auth database completely
           try {
             await new Promise((resolve, reject) => {
-              const deleteRequest = indexedDB.deleteDatabase('sb-auth');
+              const deleteRequest = indexedDB.deleteDatabase('sb-auth-v2');
               deleteRequest.onsuccess = () => {
-                console.log('[Logout] Successfully deleted IndexedDB: sb-auth');
+                console.log('[Logout] Successfully deleted IndexedDB: sb-auth-v2');
                 resolve(true);
               };
               deleteRequest.onerror = () => {
-                console.error('[Logout] Error deleting sb-auth:', deleteRequest.error);
+                console.error('[Logout] Error deleting sb-auth-v2:', deleteRequest.error);
                 reject(deleteRequest.error);
               };
               deleteRequest.onblocked = () => {
-                console.warn('[Logout] IndexedDB sb-auth deletion blocked - trying to continue anyway');
+                console.warn('[Logout] IndexedDB sb-auth-v2 deletion blocked - trying to continue anyway');
                 // Wait a bit and resolve anyway
                 setTimeout(() => resolve(true), 200);
               };
             });
           } catch (err) {
-            console.warn('[Logout] Failed to clear sb-auth:', err);
+            console.warn('[Logout] Failed to clear sb-auth-v2:', err);
           }
 
           // Verify deletion

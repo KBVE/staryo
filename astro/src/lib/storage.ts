@@ -1,6 +1,8 @@
 // src/lib/storage.ts
-// Shared IndexedDB storage implementation for Supabase
+// Shared IndexedDB storage implementation for Supabase using Dexie
 // This ensures the window client and SharedWorker share the same session storage
+
+import Dexie, { type Table } from 'dexie';
 
 interface AsyncStorage {
   getItem(key: string): Promise<string | null>;
@@ -8,47 +10,54 @@ interface AsyncStorage {
   removeItem(key: string): Promise<void>;
 }
 
+interface KVPair {
+  key: string;
+  value: string;
+}
+
+class AuthDB extends Dexie {
+  kv!: Table<KVPair, string>;
+
+  constructor() {
+    super('sb-auth-v2');
+    this.version(1).stores({
+      kv: 'key'
+    });
+  }
+}
+
 export class IDBStorage implements AsyncStorage {
-  private dbp: Promise<IDBDatabase>;
+  private db: AuthDB;
 
-  constructor(private dbName = 'sb-auth', private storeName = 'kv') {
-    this.dbp = new Promise((resolve, reject) => {
-      const req = indexedDB.open(dbName, 1);
-      req.onupgradeneeded = () => req.result.createObjectStore(storeName);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
+  constructor() {
+    this.db = new AuthDB();
   }
 
-  private async withStore(mode: IDBTransactionMode) {
-    const db = await this.dbp;
-    return db.transaction(this.storeName, mode).objectStore(this.storeName);
+  async getItem(key: string): Promise<string | null> {
+    try {
+      const item = await this.db.kv.get(key);
+      return item?.value ?? null;
+    } catch (err) {
+      console.error('[IDBStorage] getItem error:', err);
+      return null;
+    }
   }
 
-  async getItem(key: string) {
-    const store = await this.withStore('readonly');
-    return new Promise<string | null>((resolve, reject) => {
-      const req = store.get(key);
-      req.onsuccess = () => resolve((req.result as string) ?? null);
-      req.onerror = () => reject(req.error);
-    });
+  async setItem(key: string, value: string): Promise<void> {
+    try {
+      await this.db.kv.put({ key, value });
+    } catch (err) {
+      console.error('[IDBStorage] setItem error:', err);
+      throw err;
+    }
   }
 
-  async setItem(key: string, value: string) {
-    const store = await this.withStore('readwrite');
-    await new Promise<void>((resolve, reject) => {
-      const req = store.put(value, key);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
-  }
-
-  async removeItem(key: string) {
-    const store = await this.withStore('readwrite');
-    await new Promise<void>((resolve, reject) => {
-      const req = store.delete(key);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
+  async removeItem(key: string): Promise<void> {
+    try {
+      await this.db.kv.delete(key);
+    } catch (err) {
+      console.error('[IDBStorage] removeItem error:', err);
+      throw err;
+    }
   }
 }

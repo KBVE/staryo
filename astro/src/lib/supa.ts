@@ -1,5 +1,6 @@
 // src/lib/supa.ts
 import { SupaShared } from './supabase-shared';
+import { migrateAuthStorage } from './storage-migration';
 
 let _supa: SupaShared | null = null;
 let _initPromise: Promise<void> | null = null;
@@ -21,8 +22,13 @@ export function initSupa(options?: any): Promise<void> {
   if (_initPromise) return _initPromise;
 
   const supa = ensureClient();
-  _initPromise = supa
-    .init(SUPABASE_URL, SUPABASE_ANON_KEY, options)
+  _initPromise = (async () => {
+    // Run migration before initializing Supabase
+    await migrateAuthStorage();
+
+    // Now initialize Supabase with the new storage
+    await supa.init(SUPABASE_URL, SUPABASE_ANON_KEY, options);
+  })()
     .then(() => {})
     .catch((e) => {
       _initPromise = null;

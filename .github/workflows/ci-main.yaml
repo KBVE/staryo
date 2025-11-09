@@ -22,17 +22,50 @@ jobs:
                   echo "version=$VERSION" >> $GITHUB_OUTPUT
                   echo "Extracted version: $VERSION"
 
-    create-tracking-issue:
-        name: Create Deployment Tracking Issue
+    build-and-push:
+        name: Build and Push Docker Image
         runs-on: ubuntu-latest
         needs: extract-version
         permissions:
+            contents: read
+            packages: write
             issues: write
         outputs:
+            should_build: ${{ steps.check-version.outputs.should_build }}
             issue_number: ${{ steps.create-issue.outputs.result }}
         steps:
-            - name: Create issue in KBVE repo
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Log in to GitHub Container Registry
+              uses: docker/login-action@v3
+              with:
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.UNITY_PAT }}
+                  #password: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Check if version exists in GHCR
+              id: check-version
+              continue-on-error: true
+              run: |
+                  VERSION=${{ needs.extract-version.outputs.version }}
+                  REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+
+                  echo "Checking for image: ghcr.io/${REPO_LOWER}:${VERSION}"
+
+                  # Check if the version tag exists in GHCR
+                  if docker manifest inspect ghcr.io/${REPO_LOWER}:${VERSION} > /dev/null 2>&1; then
+                      echo "✓ Image version ${VERSION} already exists in GHCR"
+                      echo "should_build=false" >> $GITHUB_OUTPUT
+                  else
+                      echo "✗ Image version ${VERSION} does not exist, will build and push"
+                      echo "should_build=true" >> $GITHUB_OUTPUT
+                  fi
+
+            - name: Create tracking issue in KBVE repo
               id: create-issue
+              if: steps.check-version.outputs.should_build == 'true'
               uses: actions/github-script@v7
               with:
                   github-token: ${{ secrets.UNITY_PAT }}
@@ -66,44 +99,6 @@ jobs:
                       });
                       console.log(`Created issue #${issue.data.number}`);
                       return issue.data.number;
-
-    build-and-push:
-        name: Build and Push Docker Image
-        runs-on: ubuntu-latest
-        needs: [extract-version, create-tracking-issue]
-        permissions:
-            contents: read
-            packages: write
-            issues: write
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
-
-            - name: Log in to GitHub Container Registry
-              uses: docker/login-action@v3
-              with:
-                  registry: ghcr.io
-                  username: ${{ github.actor }}
-                  password: ${{ secrets.UNITY_PAT }}
-                  #password: ${{ secrets.GITHUB_TOKEN }}
-
-            - name: Check if version exists in GHCR
-              id: check-version
-              continue-on-error: true
-              run: |
-                  VERSION=${{ needs.extract-version.outputs.version }}
-                  REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-
-                  echo "Checking for image: ghcr.io/${REPO_LOWER}:${VERSION}"
-
-                  # Check if the version tag exists in GHCR
-                  if docker manifest inspect ghcr.io/${REPO_LOWER}:${VERSION} > /dev/null 2>&1; then
-                      echo "✓ Image version ${VERSION} already exists in GHCR"
-                      echo "should_build=false" >> $GITHUB_OUTPUT
-                  else
-                      echo "✗ Image version ${VERSION} does not exist, will build and push"
-                      echo "should_build=true" >> $GITHUB_OUTPUT
-                  fi
 
             - name: Set up Docker Buildx
               if: steps.check-version.outputs.should_build == 'true'
@@ -152,7 +147,7 @@ jobs:
                   github-token: ${{ secrets.UNITY_PAT }}
                   script: |
                       const version = '${{ needs.extract-version.outputs.version }}';
-                      const issueNumber = ${{ needs.create-tracking-issue.outputs.issue_number }};
+                      const issueNumber = ${{ steps.create-issue.outputs.result }};
                       await github.rest.issues.createComment({
                         owner: 'KBVE',
                         repo: 'kbve',
@@ -168,33 +163,14 @@ jobs:
                       Next step: Updating deployment manifest...`
                       });
 
-            - name: Update issue - Build skipped
-              if: success() && steps.check-version.outputs.should_build == 'false'
-              uses: actions/github-script@v7
-              with:
-                  github-token: ${{ secrets.UNITY_PAT }}
-                  script: |
-                      const version = '${{ needs.extract-version.outputs.version }}';
-                      const issueNumber = ${{ needs.create-tracking-issue.outputs.issue_number }};
-                      await github.rest.issues.createComment({
-                        owner: 'KBVE',
-                        repo: 'kbve',
-                        issue_number: issueNumber,
-                        body: `### ⏭️ Build Skipped
-
-                      Image \`ghcr.io/kbve/staryo:${version}\` already exists in GHCR. Skipping build.
-
-                      Proceeding to deployment manifest update...`
-                      });
-
             - name: Update issue - Build failed
-              if: failure()
+              if: failure() && steps.create-issue.outputs.result != ''
               uses: actions/github-script@v7
               with:
                   github-token: ${{ secrets.UNITY_PAT }}
                   script: |
                       const version = '${{ needs.extract-version.outputs.version }}';
-                      const issueNumber = ${{ needs.create-tracking-issue.outputs.issue_number }};
+                      const issueNumber = ${{ steps.create-issue.outputs.result }};
                       const runUrl = '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}';
                       await github.rest.issues.createComment({
                         owner: 'KBVE',
@@ -218,7 +194,8 @@ jobs:
     update-kbve-manifest:
         name: Update Deployment Manifest in KBVE Repo
         runs-on: ubuntu-latest
-        needs: [extract-version, create-tracking-issue, build-and-push]
+        needs: [extract-version, build-and-push]
+        if: needs.build-and-push.outputs.should_build == 'true'
         permissions:
             contents: write
             pull-requests: write
@@ -264,7 +241,7 @@ jobs:
                       - Updated `apps/kube/staryo/manifest/staryo-deployment.yaml`
                       - New image tag: `ghcr.io/kbve/staryo:${{ needs.extract-version.outputs.version }}`
 
-                      **Tracking Issue:** #${{ needs.create-tracking-issue.outputs.issue_number }}
+                      **Tracking Issue:** #${{ needs.build-and-push.outputs.issue_number }}
 
                       **Source:**
                       - Triggered by: ${{ github.repository }}@${{ github.sha }}
@@ -272,7 +249,7 @@ jobs:
 
                       🤖 This PR was automatically generated by the Staryo CI pipeline.
 
-                      Closes #${{ needs.create-tracking-issue.outputs.issue_number }}
+                      Closes #${{ needs.build-and-push.outputs.issue_number }}
                   base: main
                   labels: |
                       automated
@@ -285,7 +262,7 @@ jobs:
                   github-token: ${{ secrets.UNITY_PAT }}
                   script: |
                       const version = '${{ needs.extract-version.outputs.version }}';
-                      const issueNumber = ${{ needs.create-tracking-issue.outputs.issue_number }};
+                      const issueNumber = ${{ needs.build-and-push.outputs.issue_number }};
                       const prNumber = ${{ steps.create-pr.outputs.pull-request-number }};
                       const prUrl = `https://github.com/KBVE/kbve/pull/${prNumber}`;
 
@@ -310,7 +287,7 @@ jobs:
               with:
                   github-token: ${{ secrets.UNITY_PAT }}
                   script: |
-                      const issueNumber = ${{ needs.create-tracking-issue.outputs.issue_number }};
+                      const issueNumber = ${{ needs.build-and-push.outputs.issue_number }};
                       const runUrl = '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}';
 
                       await github.rest.issues.createComment({
