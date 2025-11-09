@@ -17,9 +17,9 @@ export default defineConfig({
     starlight({
       plugins: [starlightThemeGalaxy()],
       title: "Staryo",
-      defaultLocale: "en",
+      defaultLocale: "root",
       locales: {
-        en: {
+        root: {
           label: "English",
           lang: "en",
         },
