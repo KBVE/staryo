@@ -1,70 +1,86 @@
 /**
- * i18n translations for custom UI strings
- * These extend Starlight's built-in translations
+ * i18n utilities for working with Starlight's extended translations
+ *
+ * Translations are now managed through Starlight's content collections system.
+ * See src/content/i18n/ for translation files and src/content.config.ts for schema.
+ *
+ * Usage in Astro components:
+ * ```astro
+ * ---
+ * import { useTranslations } from '@astrojs/starlight/utils/translations';
+ * const t = useTranslations(Astro);
+ * ---
+ * <button>{t('auth.signIn')}</button>
+ * ```
  */
-
-import en from './en.json';
-import es from './es.json';
-import ja from './ja.json';
-import ko from './ko.json';
-
-/**
- * Translation dictionaries for each locale
- */
-export const translations = {
-  en,
-  es,
-  ja,
-  ko,
-} as const;
 
 /**
  * Type for available locales
  */
-export type Locale = keyof typeof translations;
+export type Locale = 'en' | 'es' | 'ja' | 'ko';
 
 /**
- * Type for translation keys
+ * Type for custom translation keys
+ * These extend Starlight's built-in translation keys
  */
-export type TranslationKey = keyof typeof en;
-
-/**
- * Helper function to get a translation for a specific locale
- * @param locale - The locale code (en, es, ja, ko)
- * @param key - The translation key (e.g., 'auth.signIn')
- * @param fallback - Optional fallback text if translation is missing
- * @returns The translated string
- */
-export function t(locale: Locale, key: TranslationKey, fallback?: string): string {
-  const translation = translations[locale]?.[key];
-  if (translation) return translation;
-
-  // Fallback to English if translation is missing
-  const enTranslation = translations.en[key];
-  if (enTranslation) return enTranslation;
-
-  // Return fallback or key if nothing found
-  return fallback ?? key;
-}
+export type CustomTranslationKey =
+	// Authentication
+	| 'auth.signIn'
+	| 'auth.signInWith'
+	| 'auth.signInWithGitHub'
+	| 'auth.signInWithTwitch'
+	| 'auth.signInWithDiscord'
+	| 'auth.signOut'
+	| 'auth.signingOut'
+	| 'auth.signedOut'
+	| 'auth.signOutError'
+	| 'auth.authenticating'
+	| 'auth.completingSignIn'
+	| 'auth.authFailed'
+	| 'auth.signInFailed'
+	| 'auth.oauthSignInFailed'
+	| 'auth.signOutFailed'
+	| 'auth.loggedInAs'
+	| 'auth.anonymousUser'
+	| 'auth.guestUser'
+	// User
+	| 'user.loading'
+	| 'user.error'
+	// Session
+	| 'session.sharedWorkerInfo'
+	| 'session.supabaseInitFailed'
+	// Common
+	| 'common.close'
+	| 'common.pleaseWait'
+	| 'common.redirecting'
+	// Site
+	| 'site.logoAlt';
 
 /**
  * Helper to replace placeholders in translation strings
+ *
  * @param text - The translation string with placeholders like {provider}
  * @param replacements - Object with key-value pairs for replacements
  * @returns The text with replaced placeholders
  *
  * @example
- * replacePlaceholders('Sign in with {provider}', { provider: 'GitHub' })
- * // Returns: 'Sign in with GitHub'
+ * ```ts
+ * import { useTranslations } from '@astrojs/starlight/utils/translations';
+ * import { replacePlaceholders } from '../i18n';
+ *
+ * const t = useTranslations(Astro);
+ * const template = t('auth.signInWith');
+ * const text = replacePlaceholders(template, { provider: 'GitHub' });
+ * // Result: 'Sign in with GitHub'
+ * ```
  */
 export function replacePlaceholders(
-  text: string,
-  replacements: Record<string, string>
+	text: string,
+	replacements: Record<string, string>
 ): string {
-  return Object.entries(replacements).reduce(
-    (result, [key, value]) => result.replace(new RegExp(`\\{${key}\\}`, 'g'), value),
-    text
-  );
+	return Object.entries(replacements).reduce(
+		(result, [key, value]) =>
+			result.replace(new RegExp(`\\{${key}\\}`, 'g'), value),
+		text
+	);
 }
-
-export default translations;
