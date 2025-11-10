@@ -59,6 +59,7 @@ export default defineConfig({
       ],
       components: {
         SiteTitle: "./src/components/navigation/SiteTitle.astro",
+        Footer: "./src/components/footer/AstroStarlightFooter.astro",
       },
     }),
     react(),

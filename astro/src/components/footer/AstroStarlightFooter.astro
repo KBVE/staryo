@@ -1,0 +1,157 @@
+---
+/**
+ * Custom Starlight Footer Component
+ *
+ * This component provides a customizable footer for Starlight-based sites.
+ * It extends the default Starlight footer with additional customization options
+ * while maintaining compatibility with the galaxy theme.
+ */
+
+import type { FooterConfig } from './typeFooter';
+import EditLink from 'virtual:starlight/components/EditLink';
+import LastUpdated from 'virtual:starlight/components/LastUpdated';
+import Pagination from 'virtual:starlight/components/Pagination';
+
+// Footer configuration with sensible defaults
+const config: FooterConfig = {
+  showEditLink: true,
+  showLastUpdated: true,
+  showPagination: true,
+  showStarlightCredit: false,
+  customLinks: [],
+  copyright: undefined,
+  className: '',
+};
+
+// You can override these defaults by passing props or importing a config
+// For now, using defaults that match Starlight's behavior
+---
+
+<footer class={`sl-flex custom-footer ${config.className || ''}`}>
+  <!-- Meta information section (Edit & Last Updated) -->
+  {(config.showEditLink || config.showLastUpdated) && (
+    <div class="meta sl-flex">
+      {config.showEditLink && <EditLink />}
+      {config.showLastUpdated && <LastUpdated />}
+    </div>
+  )}
+
+  <!-- Pagination controls -->
+  {config.showPagination && <Pagination />}
+
+  <!-- Custom content section -->
+  {config.customLinks && config.customLinks.length > 0 && (
+    <div class="custom-links sl-flex">
+      {config.customLinks.map((link) => (
+        <a
+          href={link.href}
+          target={link.external ? '_blank' : undefined}
+          rel={link.external ? 'noopener noreferrer' : undefined}
+          aria-label={link.ariaLabel || link.label}
+          class="footer-link"
+        >
+          {link.label}
+        </a>
+      ))}
+    </div>
+  )}
+
+  <!-- Copyright section -->
+  {config.copyright && (
+    <div class="copyright">
+      <p>{config.copyright}</p>
+    </div>
+  )}
+
+  <!-- Optional Starlight credit -->
+  {config.showStarlightCredit && (
+    <a class="kudos sl-flex" href="https://starlight.astro.build">
+      <span class="starlight-icon">🌟</span>
+      {Astro.locals.t ? Astro.locals.t('builtWithStarlight.label') : 'Built with Starlight'}
+    </a>
+  )}
+</footer>
+
+<style>
+  /* Base footer styles following Starlight patterns */
+  @layer starlight.core {
+    footer {
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .meta {
+      gap: 0.75rem 3rem;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      margin-top: 3rem;
+      font-size: var(--sl-text-sm);
+      color: var(--sl-color-gray-3);
+    }
+
+    .meta > :global(p:only-child) {
+      margin-inline-start: auto;
+    }
+
+    /* Custom links styling */
+    .custom-links {
+      gap: 1rem 2rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      padding: 1rem 0;
+    }
+
+    .footer-link {
+      font-size: var(--sl-text-sm);
+      color: var(--sl-color-gray-3);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .footer-link:hover {
+      color: var(--sl-color-white);
+    }
+
+    /* Copyright styling */
+    .copyright {
+      text-align: center;
+      font-size: var(--sl-text-xs);
+      color: var(--sl-color-gray-4);
+      padding: 0.5rem 0;
+    }
+
+    .copyright p {
+      margin: 0;
+    }
+
+    /* Starlight credit styling */
+    .kudos {
+      align-items: center;
+      gap: 0.5em;
+      margin: 1.5rem auto;
+      font-size: var(--sl-text-xs);
+      text-decoration: none;
+      color: var(--sl-color-gray-3);
+    }
+
+    .kudos:hover {
+      color: var(--sl-color-white);
+    }
+  }
+
+  @layer starlight.components {
+    .kudos .starlight-icon {
+      color: var(--sl-color-orange);
+      font-size: 1.2em;
+    }
+  }
+
+  /* Galaxy theme compatibility */
+  @media (prefers-color-scheme: dark) {
+    .custom-footer {
+      /* Ensure footer works well with galaxy theme */
+      background: transparent;
+    }
+  }
+</style>
