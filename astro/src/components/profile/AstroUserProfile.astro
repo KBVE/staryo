@@ -243,6 +243,53 @@ import ReactUserProfile from './ReactUserProfile';
   }
 
   /**
+   * Insert canvas into data-x-kbve element
+   * Transfers OffscreenCanvas from worker to regular canvas in DOM
+   */
+  function insertCanvas(key: string, offscreenCanvas: OffscreenCanvas) {
+    const container = document.querySelector(`[data-x-kbve="${key}"]`) as HTMLElement;
+    if (!container) {
+      console.warn(`[Profile] Element not found: data-x-kbve="${key}"`);
+      return;
+    }
+
+    // Create regular canvas element
+    const canvas = document.createElement('canvas');
+    canvas.width = offscreenCanvas.width;
+    canvas.height = offscreenCanvas.height;
+    canvas.className = 'w-full h-full object-cover';
+
+    // Transfer the rendered content from OffscreenCanvas
+    const ctx = canvas.getContext('bitmaprenderer');
+    if (ctx) {
+      // Use transferToImageBitmap for efficient zero-copy transfer
+      const bitmap = offscreenCanvas.transferToImageBitmap();
+      ctx.transferFromImageBitmap(bitmap);
+    } else {
+      // Fallback: use 2d context (less efficient but more compatible)
+      const ctx2d = canvas.getContext('2d');
+      if (ctx2d) {
+        // Note: This creates a new ImageBitmap which is less efficient
+        offscreenCanvas.convertToBlob().then(blob => {
+          createImageBitmap(blob).then(bitmap => {
+            ctx2d.drawImage(bitmap, 0, 0);
+            bitmap.close();
+          });
+        });
+      }
+    }
+
+    // Clear container and insert canvas
+    container.innerHTML = '';
+    container.appendChild(canvas);
+
+    console.log(`[Profile] Canvas inserted into ${key}:`, {
+      width: canvas.width,
+      height: canvas.height
+    });
+  }
+
+  /**
    * Fade out skeleton layer
    */
   function hideSkeleton() {
@@ -292,6 +339,7 @@ import ReactUserProfile from './ReactUserProfile';
     updateAvatar,
     updateText,
     updateHTML,
+    insertCanvas,
     updateProfileUI,
     hideSkeleton,
     showSkeleton,

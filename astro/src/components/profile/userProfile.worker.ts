@@ -284,6 +284,199 @@ async function processAvatar(imageData: ArrayBuffer, mimeType: string): Promise<
 }
 
 /**
+ * Render avatar with effects on OffscreenCanvas
+ */
+async function renderAvatarCanvas(
+  imageUrl: string,
+  size: number,
+  effects?: import('./userProfile').AvatarEffects
+): Promise<OffscreenCanvas> {
+  const canvas = new OffscreenCanvas(size, size);
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    throw new Error('Failed to get 2D context');
+  }
+
+  // Fetch and load image
+  const response = await fetch(imageUrl);
+  const blob = await response.blob();
+  const imageBitmap = await createImageBitmap(blob);
+
+  // Enable image smoothing
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  // Apply shadow if requested
+  if (effects?.shadow) {
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 4;
+  }
+
+  // Draw circular avatar
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
+
+  // Apply grayscale filter if requested
+  if (effects?.grayscale) {
+    ctx.filter = 'grayscale(100%)';
+  }
+
+  // Draw image
+  ctx.drawImage(imageBitmap, 0, 0, size, size);
+  ctx.restore();
+
+  // Draw border if requested
+  if (effects?.borderWidth && effects?.borderColor) {
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size / 2 - effects.borderWidth / 2, 0, Math.PI * 2);
+    ctx.strokeStyle = effects.borderColor;
+    ctx.lineWidth = effects.borderWidth;
+    ctx.stroke();
+  }
+
+  // Draw badge if requested
+  if (effects?.badge) {
+    const badgeSize = size * 0.3;
+    const badgeRadius = badgeSize / 2;
+    let badgeX: number, badgeY: number;
+
+    switch (effects.badge.position) {
+      case 'top-right':
+        badgeX = size - badgeRadius;
+        badgeY = badgeRadius;
+        break;
+      case 'bottom-right':
+        badgeX = size - badgeRadius;
+        badgeY = size - badgeRadius;
+        break;
+      case 'top-left':
+        badgeX = badgeRadius;
+        badgeY = badgeRadius;
+        break;
+      case 'bottom-left':
+        badgeX = badgeRadius;
+        badgeY = size - badgeRadius;
+        break;
+    }
+
+    // Draw badge background
+    ctx.beginPath();
+    ctx.arc(badgeX, badgeY, badgeRadius, 0, Math.PI * 2);
+    ctx.fillStyle = effects.badge.color;
+    ctx.fill();
+
+    // Draw badge text
+    ctx.fillStyle = 'white';
+    ctx.font = `bold ${badgeSize * 0.5}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(effects.badge.text, badgeX, badgeY);
+  }
+
+  // Clean up
+  imageBitmap.close();
+
+  return canvas;
+}
+
+/**
+ * Render profile badge on OffscreenCanvas
+ */
+async function renderProfileBadge(level: number, title: string): Promise<OffscreenCanvas> {
+  const width = 200;
+  const height = 80;
+  const canvas = new OffscreenCanvas(width, height);
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    throw new Error('Failed to get 2D context');
+  }
+
+  // Draw badge background with gradient
+  const gradient = ctx.createLinearGradient(0, 0, width, 0);
+  gradient.addColorStop(0, '#a855f7');
+  gradient.addColorStop(1, '#7e22ce');
+
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.roundRect(0, 0, width, height, 10);
+  ctx.fill();
+
+  // Draw level
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+  ctx.font = 'bold 48px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(level.toString(), 15, height / 2);
+
+  // Draw title
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 18px sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(title, width - 15, height / 2);
+
+  return canvas;
+}
+
+/**
+ * Render stats chart on OffscreenCanvas
+ */
+async function renderStatsChart(data: number[], width: number, height: number): Promise<OffscreenCanvas> {
+  const canvas = new OffscreenCanvas(width, height);
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    throw new Error('Failed to get 2D context');
+  }
+
+  const padding = 20;
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
+  const maxValue = Math.max(...data);
+  const barWidth = chartWidth / data.length;
+
+  // Draw background
+  ctx.fillStyle = 'rgba(168, 85, 247, 0.1)';
+  ctx.fillRect(0, 0, width, height);
+
+  // Draw bars
+  data.forEach((value, index) => {
+    const barHeight = (value / maxValue) * chartHeight;
+    const x = padding + index * barWidth;
+    const y = height - padding - barHeight;
+
+    // Gradient for bar
+    const gradient = ctx.createLinearGradient(x, y, x, height - padding);
+    gradient.addColorStop(0, '#a855f7');
+    gradient.addColorStop(1, '#7e22ce');
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(x + 2, y, barWidth - 4, barHeight);
+  });
+
+  // Draw grid lines
+  ctx.strokeStyle = 'rgba(168, 85, 247, 0.2)';
+  ctx.lineWidth = 1;
+
+  for (let i = 0; i <= 4; i++) {
+    const y = padding + (chartHeight / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(padding, y);
+    ctx.lineTo(width - padding, y);
+    ctx.stroke();
+  }
+
+  return canvas;
+}
+
+/**
  * Handle messages from main thread
  */
 self.onmessage = async (e: MessageEvent<ProfileWorkerRequest>) => {
@@ -315,6 +508,50 @@ self.onmessage = async (e: MessageEvent<ProfileWorkerRequest>) => {
           type: 'AVATAR_PROCESSED',
           data: result,
         } as ProfileWorkerResponse);
+        break;
+      }
+
+      case 'RENDER_AVATAR_CANVAS': {
+        const canvas = await renderAvatarCanvas(
+          msg.payload.imageUrl,
+          msg.payload.size,
+          msg.payload.effects
+        );
+        self.postMessage(
+          {
+            type: 'CANVAS_RENDERED',
+            data: { canvas, target: 'profile-avatar-canvas' },
+          } as ProfileWorkerResponse,
+          [canvas] // Transfer canvas ownership
+        );
+        break;
+      }
+
+      case 'RENDER_PROFILE_BADGE': {
+        const canvas = await renderProfileBadge(msg.payload.level, msg.payload.title);
+        self.postMessage(
+          {
+            type: 'CANVAS_RENDERED',
+            data: { canvas, target: 'profile-badge-canvas' },
+          } as ProfileWorkerResponse,
+          [canvas] // Transfer canvas ownership
+        );
+        break;
+      }
+
+      case 'RENDER_STATS_CHART': {
+        const canvas = await renderStatsChart(
+          msg.payload.data,
+          msg.payload.width,
+          msg.payload.height
+        );
+        self.postMessage(
+          {
+            type: 'CANVAS_RENDERED',
+            data: { canvas, target: 'profile-stats-canvas' },
+          } as ProfileWorkerResponse,
+          [canvas] // Transfer canvas ownership
+        );
         break;
       }
 

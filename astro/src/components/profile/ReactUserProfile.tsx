@@ -107,6 +107,13 @@ export default function ReactUserProfile({
               }
               break;
 
+            case 'CANVAS_RENDERED':
+              if (!cleanedUp && profileHelpers) {
+                // Transfer OffscreenCanvas from worker to DOM
+                profileHelpers.insertCanvas(msg.data.target, msg.data.canvas);
+              }
+              break;
+
             case 'ERROR':
               if (!cleanedUp) {
                 console.error('[ReactProfile] Worker error:', msg.error);

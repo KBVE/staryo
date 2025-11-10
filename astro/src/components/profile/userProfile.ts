@@ -33,6 +33,9 @@ export type ProfileWorkerRequest =
   | { type: 'FETCH_PROFILE'; payload: { userId: string } }
   | { type: 'UPDATE_PROFILE'; payload: Partial<UserProfile> }
   | { type: 'PROCESS_AVATAR'; payload: { imageData: ArrayBuffer; mimeType: string } }
+  | { type: 'RENDER_AVATAR_CANVAS'; payload: { imageUrl: string; size: number; effects?: AvatarEffects } }
+  | { type: 'RENDER_PROFILE_BADGE'; payload: { level: number; title: string } }
+  | { type: 'RENDER_STATS_CHART'; payload: { data: number[]; width: number; height: number } }
   | { type: 'SERIALIZE_PROFILE'; payload: UserProfile }
   | { type: 'DESERIALIZE_PROFILE'; payload: ArrayBuffer };
 
@@ -40,9 +43,25 @@ export type ProfileWorkerResponse =
   | { type: 'PROFILE_FETCHED'; data: UserProfile }
   | { type: 'PROFILE_UPDATED'; data: UserProfile }
   | { type: 'AVATAR_PROCESSED'; data: { url: string; thumbnail: string } }
+  | { type: 'CANVAS_RENDERED'; data: { canvas: OffscreenCanvas; target: string } }
   | { type: 'PROFILE_SERIALIZED'; data: ArrayBuffer }
   | { type: 'PROFILE_DESERIALIZED'; data: UserProfile }
   | { type: 'ERROR'; error: string };
+
+/**
+ * Avatar effects for canvas rendering
+ */
+export interface AvatarEffects {
+  borderColor?: string;
+  borderWidth?: number;
+  shadow?: boolean;
+  grayscale?: boolean;
+  badge?: {
+    text: string;
+    color: string;
+    position: 'top-right' | 'bottom-right' | 'top-left' | 'bottom-left';
+  };
+}
 
 /**
  * Validates email format
