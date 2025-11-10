@@ -8,8 +8,12 @@
  * - Social media icons with SVG support
  * - Multi-column layout support
  * - Full accessibility (ARIA labels, semantic HTML)
+ * - SEO optimization (crawlable content, schema.org markup)
  * - Galaxy theme compatibility
  * - Extensive use of Starlight theme variables
+ *
+ * IMPORTANT: This is the only file referenced in astro.config.mjs
+ * All other files (SocialIcon.astro, typeFooter.ts, etc.) are imports.
  */
 
 import type { FooterConfig } from './typeFooter';
@@ -18,7 +22,7 @@ import EditLink from 'virtual:starlight/components/EditLink';
 import LastUpdated from 'virtual:starlight/components/LastUpdated';
 import Pagination from 'virtual:starlight/components/Pagination';
 
-// Footer configuration with sensible defaults
+// Static footer configuration - rendered at build time for SEO
 const config: FooterConfig = {
   showEditLink: true,
   showLastUpdated: true,
@@ -38,15 +42,16 @@ const config: FooterConfig = {
   className: '',
 };
 
+// Static class names computed at build time
 const layoutClass = config.layout ? `layout-${config.layout}` : 'layout-default';
 const borderClass = config.showBorder ? 'with-border' : 'no-border';
 
-// Helper function to generate social link label
-const getSocialLabel = (platform: string, customLabel?: string) => {
+// Helper functions for generating consistent labels (static at build time)
+const getSocialLabel = (platform: string, customLabel?: string): string => {
   return customLabel || `${platform.charAt(0).toUpperCase() + platform.slice(1)}`;
 };
 
-const getSocialAriaLabel = (platform: string, customAriaLabel?: string) => {
+const getSocialAriaLabel = (platform: string, customAriaLabel?: string): string => {
   return customAriaLabel || `Follow us on ${platform.charAt(0).toUpperCase() + platform.slice(1)}`;
 };
 ---
@@ -55,6 +60,8 @@ const getSocialAriaLabel = (platform: string, customAriaLabel?: string) => {
   class={`sl-flex custom-footer ${layoutClass} ${borderClass} ${config.className || ''}`}
   role="contentinfo"
   aria-label="Site footer"
+  itemscope
+  itemtype="https://schema.org/WPFooter"
 >
   <!-- Meta information section (Edit & Last Updated) -->
   {(config.showEditLink || config.showLastUpdated) && (
@@ -71,28 +78,37 @@ const getSocialAriaLabel = (platform: string, customAriaLabel?: string) => {
     </div>
   )}
 
-  <!-- Footer sections (multi-column layout) -->
+  <!-- Footer sections (multi-column layout) - Static content for SEO -->
   {config.sections && config.sections.length > 0 && (
     <div class="footer-sections" role="group" aria-label="Footer sections">
       {config.sections.map((section) => (
         <nav
           class="footer-section"
-          aria-label={section.ariaLabel || `${section.title} links`}
+          aria-labelledby={`section-${section.title.toLowerCase().replace(/\s+/g, '-')}`}
+          itemscope
+          itemtype="https://schema.org/SiteNavigationElement"
         >
-          <h3 class="section-title">{section.title}</h3>
+          <h3
+            class="section-title"
+            id={`section-${section.title.toLowerCase().replace(/\s+/g, '-')}`}
+            itemprop="name"
+          >
+            {section.title}
+          </h3>
           <ul class="section-links" role="list">
             {section.links.map((link) => (
               <li>
                 <a
                   href={link.href}
                   target={link.external ? '_blank' : undefined}
-                  rel={link.external ? 'noopener noreferrer' : undefined}
+                  rel={link.external ? 'noopener noreferrer nofollow' : undefined}
                   aria-label={link.ariaLabel || link.label}
                   class="section-link"
+                  itemprop="url"
                 >
-                  {link.label}
+                  <span itemprop="name">{link.label}</span>
                   {link.external && (
-                    <span class="external-indicator" aria-hidden="true">↗</span>
+                    <span class="external-indicator" aria-hidden="true"> ↗</span>
                   )}
                 </a>
               </li>
@@ -103,52 +119,63 @@ const getSocialAriaLabel = (platform: string, customAriaLabel?: string) => {
     </div>
   )}
 
-  <!-- Custom links section -->
+  <!-- Custom links section - Static content for SEO -->
   {config.customLinks && config.customLinks.length > 0 && (
-    <nav class="custom-links sl-flex" aria-label="Footer links">
+    <nav
+      class="custom-links sl-flex"
+      aria-label="Footer navigation links"
+      itemscope
+      itemtype="https://schema.org/SiteNavigationElement"
+    >
       {config.customLinks.map((link) => (
         <a
           href={link.href}
           target={link.external ? '_blank' : undefined}
-          rel={link.external ? 'noopener noreferrer' : undefined}
+          rel={link.external ? 'noopener noreferrer nofollow' : undefined}
           aria-label={link.ariaLabel || link.label}
           class="footer-link"
+          itemprop="url"
         >
-          {link.label}
+          <span itemprop="name">{link.label}</span>
           {link.external && (
-            <span class="external-indicator" aria-hidden="true">↗</span>
+            <span class="external-indicator" aria-hidden="true"> ↗</span>
           )}
         </a>
       ))}
     </nav>
   )}
 
-  <!-- Social media links -->
+  <!-- Social media links - SEO-friendly with hidden text -->
   {config.socialLinks && config.socialLinks.length > 0 && (
     <nav class="social-links sl-flex" aria-label="Social media links">
       {config.socialLinks.map((social) => (
         <a
           href={social.href}
           target="_blank"
-          rel="noopener noreferrer"
+          rel="noopener noreferrer nofollow me"
           aria-label={getSocialAriaLabel(social.platform, social.ariaLabel)}
           class="social-link"
           title={getSocialLabel(social.platform, social.label)}
+          itemprop="url"
         >
           <SocialIcon
             platform={social.platform}
             size={24}
             ariaLabel={getSocialLabel(social.platform, social.label)}
           />
+          <!-- SEO-friendly hidden text for crawlers -->
+          <span class="visually-hidden" itemprop="name">
+            {getSocialLabel(social.platform, social.label)}
+          </span>
         </a>
       ))}
     </nav>
   )}
 
-  <!-- Copyright section -->
+  <!-- Copyright section - Static SEO content -->
   {config.copyright && (
-    <div class="copyright" role="contentinfo" aria-label="Copyright information">
-      <p>{config.copyright}</p>
+    <div class="copyright" aria-label="Copyright information">
+      <p itemprop="copyrightNotice">{config.copyright}</p>
     </div>
   )}
 
@@ -158,8 +185,8 @@ const getSocialAriaLabel = (platform: string, customAriaLabel?: string) => {
       class="kudos sl-flex"
       href="https://starlight.astro.build"
       target="_blank"
-      rel="noopener noreferrer"
-      aria-label="Built with Starlight - Open in new tab"
+      rel="noopener noreferrer nofollow"
+      aria-label="Built with Starlight documentation framework - Opens in new tab"
     >
       <span class="starlight-icon" aria-hidden="true">🌟</span>
       <span>{Astro.locals.t ? Astro.locals.t('builtWithStarlight.label') : 'Built with Starlight'}</span>
@@ -190,6 +217,23 @@ const getSocialAriaLabel = (platform: string, customAriaLabel?: string) => {
 
     .no-border {
       border-top: none;
+    }
+
+    /* ===========================
+       ACCESSIBILITY - Visually Hidden
+       Content visible to screen readers and search engines
+       =========================== */
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
     }
 
     /* ===========================
@@ -348,6 +392,7 @@ const getSocialAriaLabel = (platform: string, customAriaLabel?: string) => {
         background 0.2s var(--sl-ease, ease),
         transform 0.2s var(--sl-ease, ease);
       text-decoration: none;
+      position: relative;
     }
 
     .social-link:hover,
@@ -568,6 +613,15 @@ const getSocialAriaLabel = (platform: string, customAriaLabel?: string) => {
     .section-link {
       color: #000;
       text-decoration: underline;
+    }
+
+    /* Show hidden text for print */
+    .visually-hidden {
+      position: static;
+      width: auto;
+      height: auto;
+      clip: auto;
+      white-space: normal;
     }
   }
 </style>
