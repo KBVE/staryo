@@ -1,451 +1,301 @@
 ---
 // src/components/profile/AstroUserProfile.astro
 // Static HTML shell for user profile with progressive enhancement
+// Uses skeleton-first pattern with data-x-kbve attributes
+import ReactUserProfile from './ReactUserProfile';
 ---
 
 <article
   id="user-profile-container"
-  data-profile-component="root"
-  class="profile-card max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden transition-all duration-300"
+  class="profile-card relative max-w-2xl mx-auto rounded-lg shadow-lg overflow-hidden transition-all duration-300"
+  style="background-color: var(--sl-color-bg);"
   aria-label="User profile information"
 >
-  <!-- Profile Header -->
-  <header class="profile-header relative h-32 bg-gradient-to-r from-purple-500 to-blue-500">
-    <div
-      class="absolute -bottom-16 left-6 w-32 h-32 rounded-full border-4 border-white dark:border-gray-800 overflow-hidden bg-gray-200 dark:bg-gray-700"
-      data-profile-component="avatar-container"
-      role="img"
-      aria-label="User avatar"
-    >
-      <!-- Initial loading skeleton -->
+  <!-- Skeleton Layer (High z-index - visible immediately) -->
+  <div
+    id="profile-skeleton"
+    class="profile-skeleton absolute inset-0 pointer-events-none transition-opacity duration-300"
+    style="z-index: 10;"
+    aria-hidden="true"
+  >
+    <!-- Profile Header Skeleton -->
+    <header class="relative h-32" style="background: linear-gradient(to right, var(--sl-color-accent), var(--sl-color-accent-high));">
       <div
-        id="profile-avatar-loading"
-        data-profile-state="loading"
-        class="w-full h-full flex items-center justify-center animate-pulse"
-        aria-hidden="true"
+        class="absolute -bottom-16 left-6 w-32 h-32 rounded-full border-4 overflow-hidden animate-pulse"
+        style="background-color: var(--sl-color-gray-5); border-color: var(--sl-color-bg);"
       >
-        <svg
-          class="w-16 h-16 text-gray-400"
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
-          <circle cx="12" cy="7" r="4"></circle>
-        </svg>
+        <div class="w-full h-full flex items-center justify-center">
+          <svg
+            class="w-16 h-16 opacity-30"
+            style="color: var(--sl-color-gray-3);"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </div>
+      </div>
+    </header>
+
+    <section class="pt-20 px-6 pb-6">
+      <!-- Display Name Skeleton -->
+      <div class="mb-4">
+        <div
+          class="h-8 w-48 rounded animate-pulse"
+          style="background-color: var(--sl-color-gray-5);"
+        ></div>
+        <!-- Username Skeleton -->
+        <div
+          class="h-5 w-32 rounded animate-pulse mt-2"
+          style="background-color: var(--sl-color-gray-5);"
+        ></div>
       </div>
 
-      <!-- Avatar image (hidden initially) -->
-      <img
-        id="profile-avatar-img"
-        data-profile-state="hidden"
-        alt=""
-        class="w-full h-full object-cover opacity-0 transition-opacity duration-300"
-        aria-label="User avatar image"
-      />
-    </div>
-  </header>
+      <!-- Bio Skeleton -->
+      <div class="mb-6 space-y-2">
+        <div
+          class="h-5 w-full rounded animate-pulse"
+          style="background-color: var(--sl-color-gray-5);"
+        ></div>
+        <div
+          class="h-5 w-3/4 rounded animate-pulse"
+          style="background-color: var(--sl-color-gray-5);"
+        ></div>
+      </div>
 
-  <!-- Profile Content -->
-  <section class="profile-content pt-20 px-6 pb-6">
-    <!-- Display Name -->
-    <div class="mb-4">
-      <h1
-        id="profile-display-name"
-        data-profile-component="display-name"
-        class="text-2xl font-bold text-gray-900 dark:text-white"
-        aria-label="User display name"
+      <!-- Metadata Skeleton -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <div class="h-4 w-16 rounded animate-pulse mb-2" style="background-color: var(--sl-color-gray-5);"></div>
+          <div class="h-5 w-40 rounded animate-pulse" style="background-color: var(--sl-color-gray-5);"></div>
+        </div>
+        <div>
+          <div class="h-4 w-24 rounded animate-pulse mb-2" style="background-color: var(--sl-color-gray-5);"></div>
+          <div class="h-5 w-32 rounded animate-pulse" style="background-color: var(--sl-color-gray-5);"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Data Layer (Below skeleton - filled by React) -->
+  <div class="profile-data relative" style="z-index: 1;">
+    <!-- Profile Header -->
+    <header class="relative h-32" style="background: linear-gradient(to right, var(--sl-color-accent), var(--sl-color-accent-high));">
+      <!-- Avatar Container -->
+      <div
+        class="absolute -bottom-16 left-6 w-32 h-32 rounded-full border-4 overflow-hidden"
+        style="border-color: var(--sl-color-bg); background-color: var(--sl-color-gray-5);"
+        data-x-kbve="profile-avatar"
+        role="img"
+        aria-label="User avatar"
       >
-        <span
-          class="inline-block h-8 w-48 bg-gray-300 dark:bg-gray-700 rounded animate-pulse"
-          data-profile-state="loading"
-          aria-hidden="true"
-        ></span>
-      </h1>
+        <!-- Filled by React -->
+      </div>
+    </header>
 
-      <!-- Username -->
-      <p
-        id="profile-username"
-        data-profile-component="username"
-        class="text-sm text-gray-500 dark:text-gray-400 mt-1"
-        aria-label="Username"
-      >
-        <span
-          class="inline-block h-5 w-32 bg-gray-300 dark:bg-gray-700 rounded animate-pulse"
-          data-profile-state="loading"
-          aria-hidden="true"
-        ></span>
-      </p>
-    </div>
-
-    <!-- Bio -->
-    <div class="mb-6">
-      <p
-        id="profile-bio"
-        data-profile-component="bio"
-        class="text-gray-700 dark:text-gray-300 text-sm leading-relaxed"
-        aria-label="User biography"
-      >
-        <span
-          class="inline-block h-5 w-full bg-gray-300 dark:bg-gray-700 rounded animate-pulse mb-2"
-          data-profile-state="loading"
-          aria-hidden="true"
-        ></span>
-        <span
-          class="inline-block h-5 w-3/4 bg-gray-300 dark:bg-gray-700 rounded animate-pulse"
-          data-profile-state="loading"
-          aria-hidden="true"
-        ></span>
-      </p>
-    </div>
-
-    <!-- Profile Metadata -->
-    <div
-      class="grid grid-cols-2 gap-4 text-sm"
-      role="list"
-      aria-label="Profile metadata"
-    >
-      <!-- Email -->
-      <div class="flex flex-col" role="listitem">
-        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide mb-1" aria-label="Email label">Email</span>
-        <span
-          id="profile-email"
-          data-profile-component="email"
-          class="text-gray-900 dark:text-white font-medium"
-          aria-label="User email address"
+    <!-- Profile Content -->
+    <section class="pt-20 px-6 pb-6">
+      <!-- Display Name -->
+      <div class="mb-4">
+        <h1
+          data-x-kbve="profile-display-name"
+          class="text-2xl font-bold transition-opacity duration-300"
+          style="color: var(--sl-color-text);"
+          aria-label="User display name"
         >
+          <!-- Filled by React -->
+        </h1>
+
+        <!-- Username -->
+        <p
+          data-x-kbve="profile-username"
+          class="text-sm mt-1 transition-opacity duration-300"
+          style="color: var(--sl-color-text-accent);"
+          aria-label="Username"
+        >
+          <!-- Filled by React -->
+        </p>
+      </div>
+
+      <!-- Bio -->
+      <div class="mb-6">
+        <p
+          data-x-kbve="profile-bio"
+          class="text-sm leading-relaxed transition-opacity duration-300"
+          style="color: var(--sl-color-gray-2);"
+          aria-label="User biography"
+        >
+          <!-- Filled by React -->
+        </p>
+      </div>
+
+      <!-- Profile Metadata -->
+      <div
+        class="grid grid-cols-2 gap-4 text-sm"
+        role="list"
+        aria-label="Profile metadata"
+      >
+        <!-- Email -->
+        <div class="flex flex-col" role="listitem">
+          <span class="text-xs uppercase tracking-wide mb-1" style="color: var(--sl-color-gray-3);" aria-label="Email label">Email</span>
           <span
-            class="inline-block h-5 w-40 bg-gray-300 dark:bg-gray-700 rounded animate-pulse"
-            data-profile-state="loading"
-            aria-hidden="true"
-          ></span>
-        </span>
-      </div>
+            data-x-kbve="profile-email"
+            class="font-medium transition-opacity duration-300"
+            style="color: var(--sl-color-text);"
+            aria-label="User email address"
+          >
+            <!-- Filled by React -->
+          </span>
+        </div>
 
-      <!-- Member Since -->
-      <div class="flex flex-col" role="listitem">
-        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide mb-1" aria-label="Member since label">Member Since</span>
-        <span
-          id="profile-member-since"
-          data-profile-component="member-since"
-          class="text-gray-900 dark:text-white font-medium"
-          aria-label="Member since date"
-        >
+        <!-- Member Since -->
+        <div class="flex flex-col" role="listitem">
+          <span class="text-xs uppercase tracking-wide mb-1" style="color: var(--sl-color-gray-3);" aria-label="Member since label">Member Since</span>
           <span
-            class="inline-block h-5 w-32 bg-gray-300 dark:bg-gray-700 rounded animate-pulse"
-            data-profile-state="loading"
-            aria-hidden="true"
-          ></span>
-        </span>
+            data-x-kbve="profile-member-since"
+            class="font-medium transition-opacity duration-300"
+            style="color: var(--sl-color-text);"
+            aria-label="Member since date"
+          >
+            <!-- Filled by React -->
+          </span>
+        </div>
       </div>
-    </div>
 
-    <!-- Status indicator -->
-    <div
-      id="profile-status"
-      data-profile-component="status"
-      class="mt-6 p-3 rounded-lg"
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-    >
-      <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-        <svg
-          class="w-4 h-4 animate-spin"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        <span id="profile-status-text">Loading profile...</span>
+      <!-- Interactive controls container (filled by React) -->
+      <div
+        data-x-kbve="profile-controls"
+        class="transition-opacity duration-300"
+      >
+        <!-- Filled by React -->
       </div>
-    </div>
-  </section>
+    </section>
+  </div>
 </article>
 
-<script>
-  // Vanilla JavaScript for progressive enhancement
-  // Handles profile loading and display with worker communication
+{/* React component hydrates and fills data-x-kbve elements */}
+<ReactUserProfile client:only="react" />
 
-  import type { UserProfile, ProfileState, ProfileWorkerResponse } from './userProfile';
+<script>
+  // Vanilla JavaScript helpers for React component
+  // Provides utilities for filling data-x-kbve elements and fading skeleton
+
+  import type { UserProfile } from './userProfile';
   import { formatRelativeTime, generatePlaceholderAvatar } from './userProfile';
 
   const FADE_DURATION = 300;
 
-  // Profile worker instance
-  let profileWorker: Worker | null = null;
-  let currentProfile: UserProfile | null = null;
+  /**
+   * Update avatar element
+   */
+  function updateAvatar(url: string, alt: string) {
+    const container = document.querySelector('[data-x-kbve="profile-avatar"]') as HTMLElement;
+    if (!container) return;
+
+    // Preload image
+    const img = new Image();
+    img.onload = () => {
+      container.innerHTML = `<img src="${url}" alt="${alt}" class="w-full h-full object-cover" />`;
+    };
+    img.onerror = () => {
+      console.error('[Profile] Failed to load avatar:', url);
+      // Fallback to icon
+      container.innerHTML = `
+        <div class="w-full h-full flex items-center justify-center" style="background-color: var(--sl-color-gray-5);">
+          <svg class="w-16 h-16 opacity-50" style="color: var(--sl-color-gray-3);" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </div>
+      `;
+    };
+    img.src = url;
+  }
 
   /**
-   * Initialize profile worker
+   * Update text content in data-x-kbve element
    */
-  function initProfileWorker(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      try {
-        profileWorker = new Worker(
-          new URL('./userProfile.worker.ts', import.meta.url),
-          { type: 'module' }
-        );
+  function updateText(key: string, content: string) {
+    const element = document.querySelector(`[data-x-kbve="${key}"]`) as HTMLElement;
+    if (!element) {
+      console.warn(`[Profile] Element not found: data-x-kbve="${key}"`);
+      return;
+    }
+    element.textContent = content;
+  }
 
-        profileWorker.onmessage = handleWorkerMessage;
-        profileWorker.onerror = (error) => {
-          console.error('[Profile] Worker error:', error);
-          updateStatus('error', 'Failed to initialize profile worker');
-          reject(error);
-        };
+  /**
+   * Update HTML content in data-x-kbve element
+   */
+  function updateHTML(key: string, html: string) {
+    const element = document.querySelector(`[data-x-kbve="${key}"]`) as HTMLElement;
+    if (!element) {
+      console.warn(`[Profile] Element not found: data-x-kbve="${key}"`);
+      return;
+    }
+    element.innerHTML = html;
+  }
 
-        // Wait for worker ready
-        const readyHandler = (e: MessageEvent) => {
-          if (e.data?.type === 'WORKER_READY') {
-            profileWorker?.removeEventListener('message', readyHandler);
-            resolve();
-          }
-        };
-        profileWorker.addEventListener('message', readyHandler);
+  /**
+   * Fade out skeleton layer
+   */
+  function hideSkeleton() {
+    const skeleton = document.getElementById('profile-skeleton');
+    if (!skeleton) return;
 
-        // Timeout after 5 seconds
-        setTimeout(() => reject(new Error('Worker initialization timeout')), 5000);
-      } catch (error) {
-        console.error('[Profile] Failed to create worker:', error);
-        reject(error);
-      }
+    skeleton.style.opacity = '0';
+    setTimeout(() => {
+      skeleton.style.display = 'none';
+    }, FADE_DURATION);
+  }
+
+  /**
+   * Show skeleton layer
+   */
+  function showSkeleton() {
+    const skeleton = document.getElementById('profile-skeleton');
+    if (!skeleton) return;
+
+    skeleton.style.display = 'block';
+    requestAnimationFrame(() => {
+      skeleton.style.opacity = '1';
     });
   }
 
   /**
-   * Handle messages from worker
-   */
-  function handleWorkerMessage(e: MessageEvent<ProfileWorkerResponse>) {
-    const msg = e.data;
-
-    switch (msg.type) {
-      case 'PROFILE_FETCHED':
-        currentProfile = msg.data;
-        updateProfileUI(msg.data);
-        updateStatus('success', 'Profile loaded');
-        break;
-
-      case 'PROFILE_UPDATED':
-        currentProfile = msg.data;
-        updateProfileUI(msg.data);
-        updateStatus('success', 'Profile updated');
-        break;
-
-      case 'AVATAR_PROCESSED':
-        // Update avatar with processed image
-        updateAvatar(msg.data.url, currentProfile?.displayName || 'User');
-        break;
-
-      case 'ERROR':
-        console.error('[Profile] Worker error:', msg.error);
-        updateStatus('error', msg.error);
-        break;
-
-      case 'AUTH_STATE_CHANGED':
-        // Refresh profile on auth state change
-        loadProfile();
-        break;
-    }
-  }
-
-  /**
-   * Load user profile
-   */
-  async function loadProfile() {
-    if (!profileWorker) {
-      updateStatus('error', 'Worker not initialized');
-      return;
-    }
-
-    updateStatus('loading', 'Loading profile...');
-
-    // Get user ID from Supa
-    try {
-      const { getSupa } = await import('../../lib/supa');
-      const supa = getSupa();
-      const sessionData = await supa.getSession();
-
-      if (!sessionData.session) {
-        updateStatus('anonymous', 'Not logged in');
-        return;
-      }
-
-      const userId = sessionData.session.user.id;
-
-      // Request profile from worker
-      profileWorker.postMessage({
-        type: 'FETCH_PROFILE',
-        payload: { userId },
-      });
-    } catch (error) {
-      console.error('[Profile] Failed to load profile:', error);
-      updateStatus('error', `Failed to load profile: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
-  /**
-   * Update profile UI with fade transition
+   * Update all profile UI elements from profile data
    */
   function updateProfileUI(profile: UserProfile) {
     // Update avatar
     const avatarUrl = profile.avatarUrl || generatePlaceholderAvatar(profile.displayName || profile.email);
     updateAvatar(avatarUrl, profile.displayName || profile.email);
 
-    // Update display name
-    fadeUpdate('profile-display-name', profile.displayName || profile.email);
+    // Update text fields
+    updateText('profile-display-name', profile.displayName || profile.email);
+    updateText('profile-username', profile.username ? `@${profile.username}` : '');
+    updateText('profile-bio', profile.bio || 'No bio yet');
+    updateText('profile-email', profile.email);
+    updateText('profile-member-since', formatRelativeTime(profile.createdAt));
 
-    // Update username
-    const username = profile.username ? `@${profile.username}` : '';
-    fadeUpdate('profile-username', username);
-
-    // Update bio
-    fadeUpdate('profile-bio', profile.bio || 'No bio yet');
-
-    // Update email
-    fadeUpdate('profile-email', profile.email);
-
-    // Update member since
-    fadeUpdate('profile-member-since', formatRelativeTime(profile.createdAt));
+    // Fade out skeleton after content is filled
+    setTimeout(() => hideSkeleton(), 100);
   }
 
-  /**
-   * Update avatar with fade transition
-   */
-  function updateAvatar(url: string, alt: string) {
-    const img = document.getElementById('profile-avatar-img') as HTMLImageElement | null;
-    const loading = document.getElementById('profile-avatar-loading');
-
-    if (!img) return;
-
-    // Preload image
-    const preloadImg = new Image();
-    preloadImg.onload = () => {
-      // Fade out loading skeleton
-      if (loading) {
-        loading.style.opacity = '0';
-        setTimeout(() => {
-          loading.style.display = 'none';
-        }, FADE_DURATION);
-      }
-
-      // Update and fade in image
-      img.src = url;
-      img.alt = alt;
-      requestAnimationFrame(() => {
-        img.style.opacity = '1';
-      });
-    };
-    preloadImg.onerror = () => {
-      console.error('[Profile] Failed to load avatar:', url);
-    };
-    preloadImg.src = url;
-  }
-
-  /**
-   * Fade update helper for text content
-   */
-  function fadeUpdate(elementId: string, content: string) {
-    const element = document.getElementById(elementId);
-    if (!element) return;
-
-    // Hide loading skeletons
-    const loadingElements = element.querySelectorAll('[data-profile-state="loading"]');
-    loadingElements.forEach((el) => {
-      (el as HTMLElement).style.display = 'none';
-    });
-
-    // Fade transition
-    element.style.opacity = '0';
-    setTimeout(() => {
-      element.textContent = content;
-      requestAnimationFrame(() => {
-        element.style.opacity = '1';
-      });
-    }, FADE_DURATION);
-  }
-
-  /**
-   * Update status indicator
-   */
-  function updateStatus(
-    state: 'loading' | 'success' | 'error' | 'anonymous',
-    message: string
-  ) {
-    const statusEl = document.getElementById('profile-status');
-    const statusText = document.getElementById('profile-status-text');
-
-    if (!statusEl || !statusText) return;
-
-    const colors = {
-      loading: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400',
-      success: 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400',
-      error: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400',
-      anonymous: 'bg-gray-50 dark:bg-gray-900/20 text-gray-600 dark:text-gray-400',
-    };
-
-    // Remove all color classes
-    Object.values(colors).forEach((colorClass) => {
-      colorClass.split(' ').forEach((cls) => statusEl.classList.remove(cls));
-    });
-
-    // Add new color class
-    colors[state].split(' ').forEach((cls) => statusEl.classList.add(cls));
-
-    // Update text
-    statusText.textContent = message;
-
-    // Auto-hide success messages after 3 seconds
-    if (state === 'success') {
-      setTimeout(() => {
-        if (statusEl) {
-          statusEl.style.opacity = '0';
-          setTimeout(() => {
-            statusEl.style.display = 'none';
-          }, FADE_DURATION);
-        }
-      }, 3000);
-    } else {
-      statusEl.style.opacity = '1';
-      statusEl.style.display = 'block';
-    }
-  }
-
-  /**
-   * Initialize on DOM ready
-   */
-  async function init() {
-    try {
-      await initProfileWorker();
-      await loadProfile();
-    } catch (error) {
-      console.error('[Profile] Initialization failed:', error);
-      updateStatus('error', 'Failed to initialize profile');
-    }
-  }
-
-  // Start initialization
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-
-  // Expose API for React component (if needed)
+  // Expose helpers globally for React to use
   (window as any).__profileHelpers = {
-    loadProfile,
-    updateProfileUI,
     updateAvatar,
-    fadeUpdate,
-    updateStatus,
-    getWorker: () => profileWorker,
-    getCurrentProfile: () => currentProfile,
+    updateText,
+    updateHTML,
+    updateProfileUI,
+    hideSkeleton,
+    showSkeleton,
+    FADE_DURATION,
   };
 </script>
 
@@ -454,13 +304,18 @@
     transition: opacity 300ms ease-in-out, transform 300ms ease-in-out;
   }
 
-  [data-profile-component] {
+  .profile-skeleton {
+    transition: opacity 300ms ease-in-out;
+  }
+
+  [data-x-kbve] {
     transition: opacity 300ms ease-in-out;
   }
 
   @media (prefers-reduced-motion: reduce) {
     .profile-card,
-    [data-profile-component] {
+    .profile-skeleton,
+    [data-x-kbve] {
       transition: none;
     }
   }
