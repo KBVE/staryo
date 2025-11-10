@@ -82,6 +82,18 @@ export interface FooterConfig {
    * @default true
    */
   showBorder?: boolean;
+
+  /**
+   * Enable tooltips on hover
+   * @default true
+   */
+  showTooltips?: boolean;
+
+  /**
+   * Use React component for dynamic features
+   * @default false
+   */
+  useReactFooter?: boolean;
 }
 
 /**
@@ -113,6 +125,11 @@ export interface FooterLink {
    * ARIA label for accessibility
    */
   ariaLabel?: string;
+
+  /**
+   * Tooltip text to display on hover
+   */
+  tooltip?: string;
 }
 
 /**
@@ -140,6 +157,12 @@ export interface SocialLink {
    * @default "Follow us on {platform}"
    */
   ariaLabel?: string;
+
+  /**
+   * Tooltip text to display on hover
+   * @default "Follow us on {platform}"
+   */
+  tooltip?: string;
 }
 
 /**
