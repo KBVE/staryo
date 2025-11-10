@@ -1,6 +1,24 @@
 // Type definitions for custom Starlight footer components
 
 /**
+ * Supported social media platforms
+ */
+export type SocialPlatform =
+  | 'github'
+  | 'twitter'
+  | 'discord'
+  | 'linkedin'
+  | 'youtube'
+  | 'twitch'
+  | 'mastodon'
+  | 'reddit';
+
+/**
+ * Footer layout options
+ */
+export type FooterLayout = 'default' | 'centered' | 'multi-column';
+
+/**
  * Configuration options for the custom footer
  */
 export interface FooterConfig {
@@ -34,14 +52,36 @@ export interface FooterConfig {
   customLinks?: FooterLink[];
 
   /**
+   * Social media links to display with icons
+   */
+  socialLinks?: SocialLink[];
+
+  /**
+   * Organized footer sections
+   */
+  sections?: FooterSection[];
+
+  /**
    * Custom copyright text
    */
   copyright?: string;
 
   /**
+   * Footer layout style
+   * @default 'default'
+   */
+  layout?: FooterLayout;
+
+  /**
    * Additional CSS classes to apply to the footer
    */
   className?: string;
+
+  /**
+   * Show footer border top
+   * @default true
+   */
+  showBorder?: boolean;
 }
 
 /**
@@ -78,11 +118,28 @@ export interface FooterLink {
 /**
  * Social media link configuration
  */
-export interface SocialLink extends FooterLink {
+export interface SocialLink {
   /**
-   * The social platform name (e.g., 'github', 'twitter', 'discord')
+   * The social platform name
    */
-  platform: 'github' | 'twitter' | 'discord' | 'linkedin' | 'youtube' | 'twitch' | string;
+  platform: SocialPlatform;
+
+  /**
+   * The URL to the social profile
+   */
+  href: string;
+
+  /**
+   * Custom label for the social link
+   * @default Platform name
+   */
+  label?: string;
+
+  /**
+   * ARIA label for accessibility
+   * @default "Follow us on {platform}"
+   */
+  ariaLabel?: string;
 }
 
 /**
@@ -98,4 +155,9 @@ export interface FooterSection {
    * Links in this section
    */
   links: FooterLink[];
+
+  /**
+   * ARIA label for the section
+   */
+  ariaLabel?: string;
 }

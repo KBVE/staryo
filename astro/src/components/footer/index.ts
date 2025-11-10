@@ -7,12 +7,19 @@ export type {
   FooterLink,
   SocialLink,
   FooterSection,
+  SocialPlatform,
+  FooterLayout,
 } from './typeFooter';
 
-// You can add utility functions here in the future
+// Default footer configuration
 export const defaultFooterConfig = {
   showEditLink: true,
   showLastUpdated: true,
   showPagination: true,
   showStarlightCredit: false,
+  showBorder: true,
+  layout: 'default' as const,
+  customLinks: [],
+  socialLinks: [],
+  sections: [],
 };

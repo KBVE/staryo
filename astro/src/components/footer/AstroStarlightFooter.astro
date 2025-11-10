@@ -1,13 +1,19 @@
 ---
 /**
- * Custom Starlight Footer Component
+ * Enhanced Custom Starlight Footer Component
  *
- * This component provides a customizable footer for Starlight-based sites.
- * It extends the default Starlight footer with additional customization options
- * while maintaining compatibility with the galaxy theme.
+ * This component provides a fully customizable, responsive footer for Starlight-based sites.
+ * Features include:
+ * - Responsive design (mobile, tablet, desktop)
+ * - Social media icons with SVG support
+ * - Multi-column layout support
+ * - Full accessibility (ARIA labels, semantic HTML)
+ * - Galaxy theme compatibility
+ * - Extensive use of Starlight theme variables
  */
 
 import type { FooterConfig } from './typeFooter';
+import SocialIcon from './SocialIcon.astro';
 import EditLink from 'virtual:starlight/components/EditLink';
 import LastUpdated from 'virtual:starlight/components/LastUpdated';
 import Pagination from 'virtual:starlight/components/Pagination';
@@ -18,30 +24,88 @@ const config: FooterConfig = {
   showLastUpdated: true,
   showPagination: true,
   showStarlightCredit: false,
+  showBorder: true,
+  layout: 'default',
   customLinks: [],
+  socialLinks: [
+    // Example social links - customize these!
+    // { platform: 'github', href: 'https://github.com/KBVE/staryo' },
+    // { platform: 'discord', href: 'https://discord.gg/yourserver' },
+    // { platform: 'twitter', href: 'https://twitter.com/youraccount' },
+  ],
+  sections: [],
   copyright: undefined,
   className: '',
 };
 
-// You can override these defaults by passing props or importing a config
-// For now, using defaults that match Starlight's behavior
+const layoutClass = config.layout ? `layout-${config.layout}` : 'layout-default';
+const borderClass = config.showBorder ? 'with-border' : 'no-border';
+
+// Helper function to generate social link label
+const getSocialLabel = (platform: string, customLabel?: string) => {
+  return customLabel || `${platform.charAt(0).toUpperCase() + platform.slice(1)}`;
+};
+
+const getSocialAriaLabel = (platform: string, customAriaLabel?: string) => {
+  return customAriaLabel || `Follow us on ${platform.charAt(0).toUpperCase() + platform.slice(1)}`;
+};
 ---
 
-<footer class={`sl-flex custom-footer ${config.className || ''}`}>
+<footer
+  class={`sl-flex custom-footer ${layoutClass} ${borderClass} ${config.className || ''}`}
+  role="contentinfo"
+  aria-label="Site footer"
+>
   <!-- Meta information section (Edit & Last Updated) -->
   {(config.showEditLink || config.showLastUpdated) && (
-    <div class="meta sl-flex">
+    <div class="meta sl-flex" role="group" aria-label="Page metadata">
       {config.showEditLink && <EditLink />}
       {config.showLastUpdated && <LastUpdated />}
     </div>
   )}
 
   <!-- Pagination controls -->
-  {config.showPagination && <Pagination />}
+  {config.showPagination && (
+    <div class="pagination-wrapper" role="navigation" aria-label="Page navigation">
+      <Pagination />
+    </div>
+  )}
 
-  <!-- Custom content section -->
+  <!-- Footer sections (multi-column layout) -->
+  {config.sections && config.sections.length > 0 && (
+    <div class="footer-sections" role="group" aria-label="Footer sections">
+      {config.sections.map((section) => (
+        <nav
+          class="footer-section"
+          aria-label={section.ariaLabel || `${section.title} links`}
+        >
+          <h3 class="section-title">{section.title}</h3>
+          <ul class="section-links" role="list">
+            {section.links.map((link) => (
+              <li>
+                <a
+                  href={link.href}
+                  target={link.external ? '_blank' : undefined}
+                  rel={link.external ? 'noopener noreferrer' : undefined}
+                  aria-label={link.ariaLabel || link.label}
+                  class="section-link"
+                >
+                  {link.label}
+                  {link.external && (
+                    <span class="external-indicator" aria-hidden="true">↗</span>
+                  )}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ))}
+    </div>
+  )}
+
+  <!-- Custom links section -->
   {config.customLinks && config.customLinks.length > 0 && (
-    <div class="custom-links sl-flex">
+    <nav class="custom-links sl-flex" aria-label="Footer links">
       {config.customLinks.map((link) => (
         <a
           href={link.href}
@@ -51,92 +115,317 @@ const config: FooterConfig = {
           class="footer-link"
         >
           {link.label}
+          {link.external && (
+            <span class="external-indicator" aria-hidden="true">↗</span>
+          )}
         </a>
       ))}
-    </div>
+    </nav>
+  )}
+
+  <!-- Social media links -->
+  {config.socialLinks && config.socialLinks.length > 0 && (
+    <nav class="social-links sl-flex" aria-label="Social media links">
+      {config.socialLinks.map((social) => (
+        <a
+          href={social.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={getSocialAriaLabel(social.platform, social.ariaLabel)}
+          class="social-link"
+          title={getSocialLabel(social.platform, social.label)}
+        >
+          <SocialIcon
+            platform={social.platform}
+            size={24}
+            ariaLabel={getSocialLabel(social.platform, social.label)}
+          />
+        </a>
+      ))}
+    </nav>
   )}
 
   <!-- Copyright section -->
   {config.copyright && (
-    <div class="copyright">
+    <div class="copyright" role="contentinfo" aria-label="Copyright information">
       <p>{config.copyright}</p>
     </div>
   )}
 
   <!-- Optional Starlight credit -->
   {config.showStarlightCredit && (
-    <a class="kudos sl-flex" href="https://starlight.astro.build">
-      <span class="starlight-icon">🌟</span>
-      {Astro.locals.t ? Astro.locals.t('builtWithStarlight.label') : 'Built with Starlight'}
+    <a
+      class="kudos sl-flex"
+      href="https://starlight.astro.build"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Built with Starlight - Open in new tab"
+    >
+      <span class="starlight-icon" aria-hidden="true">🌟</span>
+      <span>{Astro.locals.t ? Astro.locals.t('builtWithStarlight.label') : 'Built with Starlight'}</span>
     </a>
   )}
 </footer>
 
 <style>
-  /* Base footer styles following Starlight patterns */
+  /* ===========================
+     STARLIGHT CORE STYLES
+     Using Starlight theme variables for consistent theming
+     =========================== */
+
   @layer starlight.core {
+    /* Main footer container */
     footer {
       flex-direction: column;
-      gap: 1.5rem;
+      gap: var(--sl-content-pad-y, 1.5rem);
+      padding-block-start: var(--sl-content-pad-y, 2rem);
+      width: 100%;
     }
 
+    /* Border styling */
+    .with-border {
+      border-top: 1px solid var(--sl-color-hairline);
+      margin-top: var(--sl-content-pad-y, 3rem);
+    }
+
+    .no-border {
+      border-top: none;
+    }
+
+    /* ===========================
+       META SECTION (Edit & Last Updated)
+       =========================== */
+
     .meta {
-      gap: 0.75rem 3rem;
+      gap: var(--sl-nav-gap, 0.75rem) 3rem;
       justify-content: space-between;
       flex-wrap: wrap;
-      margin-top: 3rem;
       font-size: var(--sl-text-sm);
       color: var(--sl-color-gray-3);
+      line-height: var(--sl-line-height-headings, 1.5);
     }
 
     .meta > :global(p:only-child) {
       margin-inline-start: auto;
     }
 
-    /* Custom links styling */
+    /* ===========================
+       PAGINATION
+       =========================== */
+
+    .pagination-wrapper {
+      margin-top: var(--sl-nav-gap, 1rem);
+    }
+
+    /* ===========================
+       FOOTER SECTIONS (Multi-column)
+       =========================== */
+
+    .footer-sections {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--sl-content-pad-x, 2rem) var(--sl-content-pad-y, 1.5rem);
+      margin: var(--sl-content-pad-y, 2rem) 0;
+      padding: var(--sl-content-pad-y, 1.5rem) 0;
+    }
+
+    .footer-section {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sl-nav-gap, 1rem);
+    }
+
+    .section-title {
+      font-size: var(--sl-text-base);
+      font-weight: var(--sl-font-weight-semibold, 600);
+      color: var(--sl-color-white);
+      margin: 0;
+      line-height: var(--sl-line-height-headings, 1.5);
+    }
+
+    .section-links {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--sl-nav-gap, 0.5rem);
+    }
+
+    .section-link {
+      font-size: var(--sl-text-sm);
+      color: var(--sl-color-gray-3);
+      text-decoration: none;
+      transition:
+        color 0.2s var(--sl-ease, ease),
+        transform 0.2s var(--sl-ease, ease);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      line-height: var(--sl-line-height, 1.6);
+    }
+
+    .section-link:hover,
+    .section-link:focus-visible {
+      color: var(--sl-color-white);
+      transform: translateX(2px);
+    }
+
+    .section-link:focus-visible {
+      outline: 2px solid var(--sl-color-accent);
+      outline-offset: 2px;
+      border-radius: var(--sl-border-radius, 0.25rem);
+    }
+
+    /* ===========================
+       CUSTOM LINKS
+       =========================== */
+
     .custom-links {
-      gap: 1rem 2rem;
+      gap: var(--sl-nav-gap, 1rem) 2rem;
       flex-wrap: wrap;
       justify-content: center;
       align-items: center;
-      padding: 1rem 0;
+      padding: var(--sl-content-pad-y, 1rem) 0;
     }
 
     .footer-link {
       font-size: var(--sl-text-sm);
       color: var(--sl-color-gray-3);
       text-decoration: none;
-      transition: color 0.2s ease;
+      transition:
+        color 0.2s var(--sl-ease, ease),
+        transform 0.2s var(--sl-ease, ease);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      line-height: var(--sl-line-height, 1.6);
+      padding: 0.25rem 0.5rem;
+      border-radius: var(--sl-border-radius, 0.25rem);
     }
 
-    .footer-link:hover {
+    .footer-link:hover,
+    .footer-link:focus-visible {
       color: var(--sl-color-white);
+      transform: translateY(-1px);
     }
 
-    /* Copyright styling */
+    .footer-link:focus-visible {
+      outline: 2px solid var(--sl-color-accent);
+      outline-offset: 2px;
+    }
+
+    .external-indicator {
+      font-size: 0.875em;
+      opacity: 0.7;
+      margin-inline-start: 0.125rem;
+    }
+
+    /* ===========================
+       SOCIAL LINKS
+       =========================== */
+
+    .social-links {
+      gap: var(--sl-nav-gap, 1rem);
+      justify-content: center;
+      align-items: center;
+      padding: var(--sl-content-pad-y, 1rem) 0;
+      flex-wrap: wrap;
+    }
+
+    .social-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.5rem;
+      height: 2.5rem;
+      padding: 0.5rem;
+      border-radius: var(--sl-border-radius, 0.5rem);
+      color: var(--sl-color-gray-3);
+      background: var(--sl-color-gray-6);
+      transition:
+        color 0.2s var(--sl-ease, ease),
+        background 0.2s var(--sl-ease, ease),
+        transform 0.2s var(--sl-ease, ease);
+      text-decoration: none;
+    }
+
+    .social-link:hover,
+    .social-link:focus-visible {
+      color: var(--sl-color-white);
+      background: var(--sl-color-gray-5);
+      transform: translateY(-2px);
+    }
+
+    .social-link:focus-visible {
+      outline: 2px solid var(--sl-color-accent);
+      outline-offset: 2px;
+    }
+
+    /* ===========================
+       COPYRIGHT
+       =========================== */
+
     .copyright {
       text-align: center;
       font-size: var(--sl-text-xs);
       color: var(--sl-color-gray-4);
-      padding: 0.5rem 0;
+      padding: var(--sl-nav-gap, 0.5rem) 0;
+      line-height: var(--sl-line-height, 1.6);
     }
 
     .copyright p {
       margin: 0;
     }
 
-    /* Starlight credit styling */
+    /* ===========================
+       STARLIGHT CREDIT
+       =========================== */
+
     .kudos {
       align-items: center;
       gap: 0.5em;
-      margin: 1.5rem auto;
+      margin: var(--sl-content-pad-y, 1.5rem) auto;
       font-size: var(--sl-text-xs);
       text-decoration: none;
       color: var(--sl-color-gray-3);
+      transition:
+        color 0.2s var(--sl-ease, ease),
+        transform 0.2s var(--sl-ease, ease);
+      padding: 0.5rem;
+      border-radius: var(--sl-border-radius, 0.25rem);
     }
 
-    .kudos:hover {
+    .kudos:hover,
+    .kudos:focus-visible {
       color: var(--sl-color-white);
+      transform: scale(1.05);
+    }
+
+    .kudos:focus-visible {
+      outline: 2px solid var(--sl-color-accent);
+      outline-offset: 2px;
+    }
+
+    /* ===========================
+       LAYOUT VARIATIONS
+       =========================== */
+
+    /* Centered layout - all content centered */
+    .layout-centered {
+      align-items: center;
+      text-align: center;
+    }
+
+    .layout-centered .meta,
+    .layout-centered .custom-links,
+    .layout-centered .social-links {
+      justify-content: center;
+    }
+
+    /* Multi-column layout - better for content-heavy footers */
+    .layout-multi-column .footer-sections {
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     }
   }
 
@@ -144,14 +433,141 @@ const config: FooterConfig = {
     .kudos .starlight-icon {
       color: var(--sl-color-orange);
       font-size: 1.2em;
+      display: inline-block;
     }
   }
 
-  /* Galaxy theme compatibility */
+  /* ===========================
+     RESPONSIVE DESIGN
+     Mobile-first approach with breakpoints
+     =========================== */
+
+  /* Mobile (< 768px) - Base styles above are mobile-first */
+
+  /* Tablet (>= 768px) */
+  @media (min-width: 48rem) {
+    .footer-sections {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .layout-multi-column .footer-sections {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .social-links {
+      gap: calc(var(--sl-nav-gap, 1rem) * 1.5);
+    }
+
+    .social-link {
+      width: 3rem;
+      height: 3rem;
+    }
+  }
+
+  /* Desktop (>= 1024px) */
+  @media (min-width: 64rem) {
+    .footer-sections {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .layout-multi-column .footer-sections {
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .meta {
+      gap: var(--sl-nav-gap, 1rem) 4rem;
+    }
+
+    .custom-links {
+      gap: var(--sl-nav-gap, 1.5rem) 3rem;
+    }
+  }
+
+  /* Large Desktop (>= 1280px) */
+  @media (min-width: 80rem) {
+    .footer-sections {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  /* ===========================
+     REDUCED MOTION
+     Respect user preferences
+     =========================== */
+
+  @media (prefers-reduced-motion: reduce) {
+    .footer-link,
+    .social-link,
+    .section-link,
+    .kudos {
+      transition: none;
+    }
+
+    .footer-link:hover,
+    .social-link:hover,
+    .section-link:hover,
+    .kudos:hover {
+      transform: none;
+    }
+  }
+
+  /* ===========================
+     GALAXY THEME COMPATIBILITY
+     Transparent backgrounds and proper layering
+     =========================== */
+
   @media (prefers-color-scheme: dark) {
     .custom-footer {
-      /* Ensure footer works well with galaxy theme */
       background: transparent;
+      backdrop-filter: blur(8px);
+    }
+
+    .social-link {
+      background: rgba(var(--sl-color-gray-6-rgb, 0, 0, 0), 0.4);
+    }
+
+    .social-link:hover {
+      background: rgba(var(--sl-color-gray-5-rgb, 0, 0, 0), 0.6);
+    }
+  }
+
+  /* ===========================
+     HIGH CONTRAST MODE
+     Enhanced accessibility
+     =========================== */
+
+  @media (prefers-contrast: high) {
+    .footer-link,
+    .section-link,
+    .social-link {
+      outline: 1px solid currentColor;
+    }
+
+    .with-border {
+      border-top-width: 2px;
+    }
+  }
+
+  /* ===========================
+     PRINT STYLES
+     Clean footer for printing
+     =========================== */
+
+  @media print {
+    .custom-footer {
+      border-top: 1px solid #000;
+      padding-top: 1rem;
+    }
+
+    .social-links,
+    .kudos {
+      display: none;
+    }
+
+    .footer-link,
+    .section-link {
+      color: #000;
+      text-decoration: underline;
     }
   }
 </style>
