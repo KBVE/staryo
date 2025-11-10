@@ -1,0 +1,370 @@
+---
+// src/components/profile/AstroUserProfile.astro
+// Static HTML shell for user profile with progressive enhancement
+// Uses skeleton-first pattern with data-x-kbve attributes
+import ReactUserProfile from './ReactUserProfile';
+---
+
+<article
+  id="user-profile-container"
+  class="profile-card relative max-w-2xl mx-auto rounded-lg shadow-lg overflow-hidden transition-all duration-300"
+  style="background-color: var(--sl-color-bg);"
+  aria-label="User profile information"
+>
+  <!-- Skeleton Layer (High z-index - visible immediately) -->
+  <div
+    id="profile-skeleton"
+    class="profile-skeleton absolute inset-0 pointer-events-none transition-opacity duration-300"
+    style="z-index: 10;"
+    aria-hidden="true"
+  >
+    <!-- Profile Header Skeleton -->
+    <header class="relative h-32" style="background: linear-gradient(to right, var(--sl-color-accent), var(--sl-color-accent-high));">
+      <div
+        class="absolute -bottom-16 left-6 w-32 h-32 rounded-full border-4 overflow-hidden animate-pulse"
+        style="background-color: var(--sl-color-gray-5); border-color: var(--sl-color-bg);"
+      >
+        <div class="w-full h-full flex items-center justify-center">
+          <svg
+            class="w-16 h-16 opacity-30"
+            style="color: var(--sl-color-gray-3);"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </div>
+      </div>
+    </header>
+
+    <section class="pt-20 px-6 pb-6">
+      <!-- Display Name Skeleton -->
+      <div class="mb-4">
+        <div
+          class="h-8 w-48 rounded animate-pulse"
+          style="background-color: var(--sl-color-gray-5);"
+        ></div>
+        <!-- Username Skeleton -->
+        <div
+          class="h-5 w-32 rounded animate-pulse mt-2"
+          style="background-color: var(--sl-color-gray-5);"
+        ></div>
+      </div>
+
+      <!-- Bio Skeleton -->
+      <div class="mb-6 space-y-2">
+        <div
+          class="h-5 w-full rounded animate-pulse"
+          style="background-color: var(--sl-color-gray-5);"
+        ></div>
+        <div
+          class="h-5 w-3/4 rounded animate-pulse"
+          style="background-color: var(--sl-color-gray-5);"
+        ></div>
+      </div>
+
+      <!-- Metadata Skeleton -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <div class="h-4 w-16 rounded animate-pulse mb-2" style="background-color: var(--sl-color-gray-5);"></div>
+          <div class="h-5 w-40 rounded animate-pulse" style="background-color: var(--sl-color-gray-5);"></div>
+        </div>
+        <div>
+          <div class="h-4 w-24 rounded animate-pulse mb-2" style="background-color: var(--sl-color-gray-5);"></div>
+          <div class="h-5 w-32 rounded animate-pulse" style="background-color: var(--sl-color-gray-5);"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Data Layer (Below skeleton - filled by React) -->
+  <div class="profile-data relative" style="z-index: 1;">
+    <!-- Profile Header -->
+    <header class="relative h-32" style="background: linear-gradient(to right, var(--sl-color-accent), var(--sl-color-accent-high));">
+      <!-- Avatar Container -->
+      <div
+        class="absolute -bottom-16 left-6 w-32 h-32 rounded-full border-4 overflow-hidden"
+        style="border-color: var(--sl-color-bg); background-color: var(--sl-color-gray-5);"
+        data-x-kbve="profile-avatar"
+        role="img"
+        aria-label="User avatar"
+      >
+        <!-- Filled by React -->
+      </div>
+    </header>
+
+    <!-- Profile Content -->
+    <section class="pt-20 px-6 pb-6">
+      <!-- Display Name -->
+      <div class="mb-4">
+        <h1
+          data-x-kbve="profile-display-name"
+          class="text-2xl font-bold transition-opacity duration-300"
+          style="color: var(--sl-color-text);"
+          aria-label="User display name"
+        >
+          <!-- Filled by React -->
+        </h1>
+
+        <!-- Username -->
+        <p
+          data-x-kbve="profile-username"
+          class="text-sm mt-1 transition-opacity duration-300"
+          style="color: var(--sl-color-text-accent);"
+          aria-label="Username"
+        >
+          <!-- Filled by React -->
+        </p>
+      </div>
+
+      <!-- Bio -->
+      <div class="mb-6">
+        <p
+          data-x-kbve="profile-bio"
+          class="text-sm leading-relaxed transition-opacity duration-300"
+          style="color: var(--sl-color-gray-2);"
+          aria-label="User biography"
+        >
+          <!-- Filled by React -->
+        </p>
+      </div>
+
+      <!-- Profile Metadata -->
+      <div
+        class="grid grid-cols-2 gap-4 text-sm"
+        role="list"
+        aria-label="Profile metadata"
+      >
+        <!-- Email -->
+        <div class="flex flex-col" role="listitem">
+          <span class="text-xs uppercase tracking-wide mb-1" style="color: var(--sl-color-gray-3);" aria-label="Email label">Email</span>
+          <span
+            data-x-kbve="profile-email"
+            class="font-medium transition-opacity duration-300"
+            style="color: var(--sl-color-text);"
+            aria-label="User email address"
+          >
+            <!-- Filled by React -->
+          </span>
+        </div>
+
+        <!-- Member Since -->
+        <div class="flex flex-col" role="listitem">
+          <span class="text-xs uppercase tracking-wide mb-1" style="color: var(--sl-color-gray-3);" aria-label="Member since label">Member Since</span>
+          <span
+            data-x-kbve="profile-member-since"
+            class="font-medium transition-opacity duration-300"
+            style="color: var(--sl-color-text);"
+            aria-label="Member since date"
+          >
+            <!-- Filled by React -->
+          </span>
+        </div>
+      </div>
+
+      <!-- Interactive controls container (filled by React) -->
+      <div
+        data-x-kbve="profile-controls"
+        class="transition-opacity duration-300"
+      >
+        <!-- Filled by React -->
+      </div>
+    </section>
+  </div>
+</article>
+
+{/* React component hydrates and fills data-x-kbve elements */}
+<ReactUserProfile client:only="react" />
+
+<script>
+  // Vanilla JavaScript helpers for React component
+  // Provides utilities for filling data-x-kbve elements and fading skeleton
+
+  import type { UserProfile } from './userProfile';
+  import { formatRelativeTime, generatePlaceholderAvatar } from './userProfile';
+
+  const FADE_DURATION = 300;
+
+  /**
+   * Update avatar element
+   */
+  function updateAvatar(url: string, alt: string) {
+    const container = document.querySelector('[data-x-kbve="profile-avatar"]') as HTMLElement;
+    if (!container) return;
+
+    // Preload image
+    const img = new Image();
+    img.onload = () => {
+      container.innerHTML = `<img src="${url}" alt="${alt}" class="w-full h-full object-cover" />`;
+    };
+    img.onerror = () => {
+      console.error('[Profile] Failed to load avatar:', url);
+      // Fallback to icon
+      container.innerHTML = `
+        <div class="w-full h-full flex items-center justify-center" style="background-color: var(--sl-color-gray-5);">
+          <svg class="w-16 h-16 opacity-50" style="color: var(--sl-color-gray-3);" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </div>
+      `;
+    };
+    img.src = url;
+  }
+
+  /**
+   * Update text content in data-x-kbve element
+   */
+  function updateText(key: string, content: string) {
+    const element = document.querySelector(`[data-x-kbve="${key}"]`) as HTMLElement;
+    if (!element) {
+      console.warn(`[Profile] Element not found: data-x-kbve="${key}"`);
+      return;
+    }
+    element.textContent = content;
+  }
+
+  /**
+   * Update HTML content in data-x-kbve element
+   */
+  function updateHTML(key: string, html: string) {
+    const element = document.querySelector(`[data-x-kbve="${key}"]`) as HTMLElement;
+    if (!element) {
+      console.warn(`[Profile] Element not found: data-x-kbve="${key}"`);
+      return;
+    }
+    element.innerHTML = html;
+  }
+
+  /**
+   * Insert canvas into data-x-kbve element
+   * Transfers OffscreenCanvas from worker to regular canvas in DOM
+   */
+  function insertCanvas(key: string, offscreenCanvas: OffscreenCanvas) {
+    const container = document.querySelector(`[data-x-kbve="${key}"]`) as HTMLElement;
+    if (!container) {
+      console.warn(`[Profile] Element not found: data-x-kbve="${key}"`);
+      return;
+    }
+
+    // Create regular canvas element
+    const canvas = document.createElement('canvas');
+    canvas.width = offscreenCanvas.width;
+    canvas.height = offscreenCanvas.height;
+    canvas.className = 'w-full h-full object-cover';
+
+    // Transfer the rendered content from OffscreenCanvas
+    const ctx = canvas.getContext('bitmaprenderer');
+    if (ctx) {
+      // Use transferToImageBitmap for efficient zero-copy transfer
+      const bitmap = offscreenCanvas.transferToImageBitmap();
+      ctx.transferFromImageBitmap(bitmap);
+    } else {
+      // Fallback: use 2d context (less efficient but more compatible)
+      const ctx2d = canvas.getContext('2d');
+      if (ctx2d) {
+        // Note: This creates a new ImageBitmap which is less efficient
+        offscreenCanvas.convertToBlob().then(blob => {
+          createImageBitmap(blob).then(bitmap => {
+            ctx2d.drawImage(bitmap, 0, 0);
+            bitmap.close();
+          });
+        });
+      }
+    }
+
+    // Clear container and insert canvas
+    container.innerHTML = '';
+    container.appendChild(canvas);
+
+    console.log(`[Profile] Canvas inserted into ${key}:`, {
+      width: canvas.width,
+      height: canvas.height
+    });
+  }
+
+  /**
+   * Fade out skeleton layer
+   */
+  function hideSkeleton() {
+    const skeleton = document.getElementById('profile-skeleton');
+    if (!skeleton) return;
+
+    skeleton.style.opacity = '0';
+    setTimeout(() => {
+      skeleton.style.display = 'none';
+    }, FADE_DURATION);
+  }
+
+  /**
+   * Show skeleton layer
+   */
+  function showSkeleton() {
+    const skeleton = document.getElementById('profile-skeleton');
+    if (!skeleton) return;
+
+    skeleton.style.display = 'block';
+    requestAnimationFrame(() => {
+      skeleton.style.opacity = '1';
+    });
+  }
+
+  /**
+   * Update all profile UI elements from profile data
+   */
+  function updateProfileUI(profile: UserProfile) {
+    // Update avatar
+    const avatarUrl = profile.avatarUrl || generatePlaceholderAvatar(profile.displayName || profile.email);
+    updateAvatar(avatarUrl, profile.displayName || profile.email);
+
+    // Update text fields
+    updateText('profile-display-name', profile.displayName || profile.email);
+    updateText('profile-username', profile.username ? `@${profile.username}` : '');
+    updateText('profile-bio', profile.bio || 'No bio yet');
+    updateText('profile-email', profile.email);
+    updateText('profile-member-since', formatRelativeTime(profile.createdAt));
+
+    // Fade out skeleton after content is filled
+    setTimeout(() => hideSkeleton(), 100);
+  }
+
+  // Expose helpers globally for React to use
+  (window as any).__profileHelpers = {
+    updateAvatar,
+    updateText,
+    updateHTML,
+    insertCanvas,
+    updateProfileUI,
+    hideSkeleton,
+    showSkeleton,
+    FADE_DURATION,
+  };
+</script>
+
+<style>
+  .profile-card {
+    transition: opacity 300ms ease-in-out, transform 300ms ease-in-out;
+  }
+
+  .profile-skeleton {
+    transition: opacity 300ms ease-in-out;
+  }
+
+  [data-x-kbve] {
+    transition: opacity 300ms ease-in-out;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .profile-card,
+    .profile-skeleton,
+    [data-x-kbve] {
+      transition: none;
+    }
+  }
+</style>
