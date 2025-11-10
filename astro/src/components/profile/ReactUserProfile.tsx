@@ -1,11 +1,12 @@
 // src/components/profile/ReactUserProfile.tsx
-// Lightweight React wrapper for user profile
-// Delegates heavy work to the worker and uses vanilla JS helpers
+// Lightweight React wrapper that fills data-x-kbve elements
+// Delegates heavy work to the worker, minimal main thread overhead
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { cn } from '@/lib/utils';
 import type {
   UserProfile,
-  ProfileState,
   ProfileWorkerRequest,
   ProfileWorkerResponse,
 } from './userProfile';
@@ -19,7 +20,7 @@ interface ReactUserProfileProps {
 
 /**
  * Lightweight React component for user profile
- * Uses the existing vanilla JS infrastructure and worker
+ * Fills data-x-kbve elements and manages interactive controls
  */
 export default function ReactUserProfile({
   userId,
@@ -27,99 +28,117 @@ export default function ReactUserProfile({
   onProfileLoaded,
   onError,
 }: ReactUserProfileProps) {
-  const [profileState, setProfileState] = useState<ProfileState>({ status: 'loading' });
-  const workerRef = useRef<Worker | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const workerRef = useRef<Worker | null>(null);
+  const isFirstRender = useRef(true);
+
+  // Get vanilla JS helpers
+  const profileHelpers = (window as any).__profileHelpers;
+
+  // Check if mounted
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   /**
-   * Initialize worker connection
+   * Initialize worker and load profile
    */
   useEffect(() => {
-    let mounted = true;
+    if (!mounted) return;
+
+    let workerInstance: Worker | null = null;
+    let cleanedUp = false;
 
     const initWorker = async () => {
       try {
-        // Check if vanilla JS helpers already initialized a worker
-        const existingWorker = (window as any).__profileHelpers?.getWorker?.();
-
-        if (existingWorker) {
-          workerRef.current = existingWorker;
-
-          // Check if profile already loaded
-          const existingProfile = (window as any).__profileHelpers?.getCurrentProfile?.();
-          if (existingProfile && mounted) {
-            setProfileState({ status: 'authenticated', profile: existingProfile });
-            onProfileLoaded?.(existingProfile);
-          }
-          return;
-        }
-
-        // Create new worker if not already created
-        const worker = new Worker(
+        // Create worker
+        workerInstance = new Worker(
           new URL('./userProfile.worker.ts', import.meta.url),
           { type: 'module' }
         );
 
-        worker.onmessage = (e: MessageEvent<ProfileWorkerResponse>) => {
-          if (!mounted) return;
+        workerRef.current = workerInstance;
+
+        // Handle worker messages
+        workerInstance.onmessage = (e: MessageEvent<ProfileWorkerResponse>) => {
+          if (cleanedUp) return;
 
           const msg = e.data;
 
           switch (msg.type) {
             case 'WORKER_READY':
-              // Worker ready, fetch profile
-              if (userId) {
-                worker.postMessage({
-                  type: 'FETCH_PROFILE',
-                  payload: { userId },
-                } as ProfileWorkerRequest);
-              }
+              // Get session and load profile
+              loadProfile();
               break;
 
             case 'PROFILE_FETCHED':
-              setProfileState({ status: 'authenticated', profile: msg.data });
-              onProfileLoaded?.(msg.data);
+              if (!cleanedUp) {
+                setProfile(msg.data);
+                setLoading(false);
+                onProfileLoaded?.(msg.data);
+
+                // Fill data-x-kbve elements on first render
+                if (isFirstRender.current && profileHelpers) {
+                  profileHelpers.updateProfileUI(msg.data);
+                  isFirstRender.current = false;
+                }
+              }
               break;
 
             case 'PROFILE_UPDATED':
-              setProfileState({ status: 'authenticated', profile: msg.data });
-              setIsEditing(false);
+              if (!cleanedUp) {
+                setProfile(msg.data);
+                setIsEditing(false);
+
+                // Update UI
+                if (profileHelpers) {
+                  profileHelpers.updateProfileUI(msg.data);
+                }
+              }
+              break;
+
+            case 'AVATAR_PROCESSED':
+              if (!cleanedUp && profileHelpers && profile) {
+                profileHelpers.updateAvatar(msg.data.url, profile.displayName || 'User');
+              }
               break;
 
             case 'ERROR':
-              setProfileState({ status: 'error', error: msg.error });
-              onError?.(msg.error);
+              if (!cleanedUp) {
+                console.error('[ReactProfile] Worker error:', msg.error);
+                setError(msg.error);
+                setLoading(false);
+                onError?.(msg.error);
+              }
               break;
 
             case 'AUTH_STATE_CHANGED':
-              // Reload profile on auth state change
-              if (userId) {
-                worker.postMessage({
-                  type: 'FETCH_PROFILE',
-                  payload: { userId },
-                } as ProfileWorkerRequest);
+              // Reload profile on auth change
+              if (!cleanedUp) {
+                loadProfile();
               }
               break;
           }
         };
 
-        worker.onerror = (error) => {
-          console.error('[ReactProfile] Worker error:', error);
-          if (mounted) {
-            setProfileState({ status: 'error', error: 'Worker initialization failed' });
+        workerInstance.onerror = (err) => {
+          if (!cleanedUp) {
+            console.error('[ReactProfile] Worker error:', err);
+            setError('Worker initialization failed');
+            setLoading(false);
             onError?.('Worker initialization failed');
           }
         };
-
-        workerRef.current = worker;
-      } catch (error) {
-        console.error('[ReactProfile] Failed to initialize:', error);
-        if (mounted) {
-          setProfileState({
-            status: 'error',
-            error: error instanceof Error ? error.message : 'Initialization failed',
-          });
-          onError?.(error instanceof Error ? error.message : 'Initialization failed');
+      } catch (err) {
+        if (!cleanedUp) {
+          console.error('[ReactProfile] Failed to create worker:', err);
+          setError(err instanceof Error ? err.message : 'Initialization failed');
+          setLoading(false);
+          onError?.(err instanceof Error ? err.message : 'Initialization failed');
         }
       }
     };
@@ -127,25 +146,56 @@ export default function ReactUserProfile({
     initWorker();
 
     return () => {
-      mounted = false;
-      // Don't terminate the worker if it's shared with vanilla JS
-      if (workerRef.current && !(window as any).__profileHelpers?.getWorker) {
-        workerRef.current.terminate();
+      cleanedUp = true;
+      if (workerInstance) {
+        workerInstance.terminate();
       }
     };
-  }, [userId, onProfileLoaded, onError]);
+  }, [mounted, onProfileLoaded, onError]);
 
   /**
-   * Update profile handler
+   * Load profile from worker
    */
-  const handleUpdateProfile = useCallback(
-    (updates: Partial<UserProfile>) => {
-      if (!workerRef.current) {
-        console.error('[ReactProfile] Worker not initialized');
+  const loadProfile = useCallback(async () => {
+    if (!workerRef.current) return;
+
+    try {
+      setLoading(true);
+
+      // Get session from Supa
+      const { getSupa } = await import('../../lib/supa');
+      const supa = getSupa();
+      const sessionData = await supa.getSession();
+
+      if (!sessionData?.session) {
+        setError('Not authenticated');
+        setLoading(false);
         return;
       }
 
-      setProfileState({ status: 'loading' });
+      const userId = sessionData.session.user.id;
+
+      // Request profile from worker
+      workerRef.current.postMessage({
+        type: 'FETCH_PROFILE',
+        payload: { userId },
+      } as ProfileWorkerRequest);
+    } catch (err) {
+      console.error('[ReactProfile] Failed to load profile:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load profile');
+      setLoading(false);
+      onError?.(err instanceof Error ? err.message : 'Failed to load profile');
+    }
+  }, [onError]);
+
+  /**
+   * Update profile
+   */
+  const handleUpdateProfile = useCallback(
+    (updates: Partial<UserProfile>) => {
+      if (!workerRef.current) return;
+
+      setLoading(true);
 
       workerRef.current.postMessage({
         type: 'UPDATE_PROFILE',
@@ -156,20 +206,15 @@ export default function ReactUserProfile({
   );
 
   /**
-   * Process avatar handler
+   * Handle avatar upload
    */
   const handleAvatarUpload = useCallback(
     async (file: File) => {
-      if (!workerRef.current) {
-        console.error('[ReactProfile] Worker not initialized');
-        return;
-      }
+      if (!workerRef.current) return;
 
       try {
-        // Read file as ArrayBuffer
         const arrayBuffer = await file.arrayBuffer();
 
-        // Send to worker for processing
         workerRef.current.postMessage({
           type: 'PROCESS_AVATAR',
           payload: {
@@ -177,136 +222,80 @@ export default function ReactUserProfile({
             mimeType: file.type,
           },
         } as ProfileWorkerRequest);
-      } catch (error) {
-        console.error('[ReactProfile] Failed to process avatar:', error);
-        onError?.(
-          error instanceof Error ? error.message : 'Failed to process avatar'
-        );
+      } catch (err) {
+        console.error('[ReactProfile] Failed to process avatar:', err);
+        onError?.(err instanceof Error ? err.message : 'Failed to process avatar');
       }
     },
     [onError]
   );
 
-  /**
-   * Render loading state
-   */
-  if (profileState.status === 'loading') {
-    return (
-      <div
-        className={`profile-react-wrapper ${className}`}
-        role="status"
-        aria-live="polite"
-        aria-label="Loading user profile"
-      >
-        <div className="flex items-center justify-center p-8">
-          <svg
-            className="w-8 h-8 text-gray-400 animate-spin"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            />
-          </svg>
-          <span className="ml-3 text-gray-600 dark:text-gray-400">
-            Loading profile...
-          </span>
-        </div>
-      </div>
-    );
-  }
+  // Don't render anything until mounted (SSR safety)
+  if (!mounted) return null;
 
-  /**
-   * Render error state
-   */
-  if (profileState.status === 'error') {
-    return (
+  // Error state - show in controls area
+  if (error && !loading) {
+    return createPortal(
       <div
-        className={`profile-react-wrapper ${className}`}
+        className={cn(
+          'mt-4 flex items-center gap-3 p-4 rounded-lg',
+          'transition-all duration-300',
+          className
+        )}
+        style={{
+          backgroundColor: 'var(--sl-color-bg-accent)',
+          color: 'var(--sl-color-text-accent)',
+        }}
         role="alert"
         aria-live="assertive"
-        aria-label="Profile error"
       >
-        <div className="flex items-center gap-3 p-6 bg-red-50 dark:bg-red-900/20 rounded-lg">
-          <svg
-            className="w-6 h-6 text-red-500"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <div>
-            <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
-              Error Loading Profile
-            </h3>
-            <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-              {profileState.error}
-            </p>
-          </div>
+        <svg
+          className="w-5 h-5 flex-shrink-0"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        <div>
+          <h3 className="text-sm font-medium">Error Loading Profile</h3>
+          <p className="text-xs opacity-80 mt-1">{error}</p>
         </div>
-      </div>
+      </div>,
+      document.querySelector('[data-x-kbve="profile-controls"]') || document.body
     );
   }
 
-  /**
-   * Render anonymous state
-   */
-  if (profileState.status === 'anonymous') {
-    return (
-      <div
-        className={`profile-react-wrapper ${className}`}
-        role="status"
-        aria-label="Not logged in"
-      >
-        <div className="flex items-center justify-center p-8 text-gray-600 dark:text-gray-400">
-          <p>Please log in to view your profile</p>
-        </div>
-      </div>
-    );
+  // Loading state - skeleton is already visible, no additional UI needed
+  if (loading) {
+    return null;
   }
 
-  /**
-   * Render authenticated profile (minimal - most rendering is done by vanilla JS)
-   */
-  const { profile } = profileState;
-
-  return (
-    <div
-      className={`profile-react-wrapper ${className}`}
-      role="region"
-      aria-label="User profile"
-    >
-      {/*
-        Most of the UI is rendered by AstroUserProfile.astro
-        This React component provides additional interactive controls
-      */}
-
-      {/* Edit Mode Toggle (example of React-specific functionality) */}
-      {!isEditing && (
-        <div className="mt-4 flex justify-end">
+  // Render interactive controls in the controls area
+  return createPortal(
+    <div className={cn('mt-6 space-y-4', className)}>
+      {/* Edit Mode Toggle */}
+      {!isEditing && profile && (
+        <div className="flex justify-end">
           <button
             onClick={() => setIsEditing(true)}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className={cn(
+              'px-4 py-2 text-sm font-medium rounded-lg',
+              'transition-colors duration-200',
+              'focus:outline-none focus:ring-2 focus:ring-offset-2'
+            )}
+            style={{
+              backgroundColor: 'var(--sl-color-accent)',
+              color: 'var(--sl-color-white)',
+              '--tw-ring-color': 'var(--sl-color-accent)',
+            } as any}
             aria-label="Edit profile"
           >
             Edit Profile
@@ -314,10 +303,16 @@ export default function ReactUserProfile({
         </div>
       )}
 
-      {/* Simple Edit Form (example) */}
-      {isEditing && (
+      {/* Edit Form */}
+      {isEditing && profile && (
         <form
-          className="mt-4 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg"
+          className={cn(
+            'p-4 rounded-lg space-y-4',
+            'animate-in fade-in duration-200'
+          )}
+          style={{
+            backgroundColor: 'var(--sl-color-bg-accent)',
+          }}
           onSubmit={(e) => {
             e.preventDefault();
             const formData = new FormData(e.currentTarget);
@@ -328,81 +323,139 @@ export default function ReactUserProfile({
           }}
           aria-label="Edit profile form"
         >
-          <div className="space-y-4">
-            <div>
-              <label
-                htmlFor="edit-display-name"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Display Name
-              </label>
-              <input
-                id="edit-display-name"
-                name="displayName"
-                type="text"
-                defaultValue={profile.displayName}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                aria-label="Display name input"
-              />
-            </div>
+          <div>
+            <label
+              htmlFor="edit-display-name"
+              className="block text-sm font-medium mb-1"
+              style={{ color: 'var(--sl-color-text)' }}
+            >
+              Display Name
+            </label>
+            <input
+              id="edit-display-name"
+              name="displayName"
+              type="text"
+              defaultValue={profile.displayName}
+              className={cn(
+                'w-full px-3 py-2 rounded-lg',
+                'transition-colors duration-200',
+                'focus:outline-none focus:ring-2'
+              )}
+              style={{
+                backgroundColor: 'var(--sl-color-bg)',
+                color: 'var(--sl-color-text)',
+                borderWidth: '1px',
+                borderColor: 'var(--sl-color-border)',
+                '--tw-ring-color': 'var(--sl-color-accent)',
+              } as any}
+              aria-label="Display name input"
+            />
+          </div>
 
-            <div>
-              <label
-                htmlFor="edit-bio"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Bio
-              </label>
-              <textarea
-                id="edit-bio"
-                name="bio"
-                rows={3}
-                defaultValue={profile.bio}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                aria-label="Biography input"
-              />
-            </div>
+          <div>
+            <label
+              htmlFor="edit-bio"
+              className="block text-sm font-medium mb-1"
+              style={{ color: 'var(--sl-color-text)' }}
+            >
+              Bio
+            </label>
+            <textarea
+              id="edit-bio"
+              name="bio"
+              rows={3}
+              maxLength={500}
+              defaultValue={profile.bio}
+              className={cn(
+                'w-full px-3 py-2 rounded-lg',
+                'transition-colors duration-200',
+                'focus:outline-none focus:ring-2'
+              )}
+              style={{
+                backgroundColor: 'var(--sl-color-bg)',
+                color: 'var(--sl-color-text)',
+                borderWidth: '1px',
+                borderColor: 'var(--sl-color-border)',
+                '--tw-ring-color': 'var(--sl-color-accent)',
+              } as any}
+              aria-label="Biography input"
+            />
+          </div>
 
-            <div>
-              <label
-                htmlFor="edit-avatar"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Avatar
-              </label>
-              <input
-                id="edit-avatar"
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleAvatarUpload(file);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                aria-label="Avatar upload input"
-              />
-            </div>
+          <div>
+            <label
+              htmlFor="edit-avatar"
+              className="block text-sm font-medium mb-1"
+              style={{ color: 'var(--sl-color-text)' }}
+            >
+              Avatar
+            </label>
+            <input
+              id="edit-avatar"
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleAvatarUpload(file);
+              }}
+              className={cn(
+                'w-full px-3 py-2 rounded-lg text-sm',
+                'transition-colors duration-200',
+                'focus:outline-none focus:ring-2'
+              )}
+              style={{
+                backgroundColor: 'var(--sl-color-bg)',
+                color: 'var(--sl-color-text)',
+                borderWidth: '1px',
+                borderColor: 'var(--sl-color-border)',
+                '--tw-ring-color': 'var(--sl-color-accent)',
+              } as any}
+              aria-label="Avatar upload input"
+            />
+          </div>
 
-            <div className="flex gap-2 justify-end">
-              <button
-                type="button"
-                onClick={() => setIsEditing(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-                aria-label="Cancel editing"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                aria-label="Save profile changes"
-              >
-                Save Changes
-              </button>
-            </div>
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              onClick={() => setIsEditing(false)}
+              className={cn(
+                'px-4 py-2 text-sm font-medium rounded-lg',
+                'transition-colors duration-200',
+                'focus:outline-none focus:ring-2 focus:ring-offset-2'
+              )}
+              style={{
+                backgroundColor: 'var(--sl-color-bg)',
+                color: 'var(--sl-color-text)',
+                borderWidth: '1px',
+                borderColor: 'var(--sl-color-border)',
+                '--tw-ring-color': 'var(--sl-color-accent)',
+              } as any}
+              aria-label="Cancel editing"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className={cn(
+                'px-4 py-2 text-sm font-medium rounded-lg',
+                'transition-colors duration-200',
+                'focus:outline-none focus:ring-2 focus:ring-offset-2',
+                'disabled:opacity-50 disabled:cursor-not-allowed'
+              )}
+              style={{
+                backgroundColor: 'var(--sl-color-accent)',
+                color: 'var(--sl-color-white)',
+                '--tw-ring-color': 'var(--sl-color-accent)',
+              } as any}
+              aria-label="Save profile changes"
+            >
+              {loading ? 'Saving...' : 'Save Changes'}
+            </button>
           </div>
         </form>
       )}
-    </div>
+    </div>,
+    document.querySelector('[data-x-kbve="profile-controls"]') || document.body
   );
 }
